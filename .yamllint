@@ -1,0 +1,22 @@
+---
+# Helm chart templates contain Go template syntax and are not valid YAML until rendered.
+# Validate them with `helm template` / `helm lint` instead of yamllint.
+extends: default
+
+ignore: |
+  deployment/helm/hcu-exporter/templates/
+
+rules:
+  line-length:
+    max: 120
+  indentation:
+    spaces: 2
+    indent-sequences: true
+  empty-lines:
+    max: 2
+    max-end: 0
+  comments-indentation: enable
+  new-line-at-end-of-file: enable
+  document-start: disable
+  new-lines:
+    type: unix

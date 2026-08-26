@@ -1,0 +1,35 @@
+# Copyright (c) 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+hcuExporter:
+  hcuExporter:
+    containerSecurityContext:
+      privileged: true
+    env:
+      hcuExporterListen: "16080"
+      logOutput: "true"
+      logThreshold: INFO
+      logVerbose: "2"
+      pulse: "10"
+      # 采集成本档位：low / medium / high（默认 high，含约 1s 窗口类指标）
+      metricsLevel: "high"
+      # 采样类利用率窗口（毫秒）；影响 hcu_*_sampled_usage / hcu_cu_util / hcu_wave_util
+      sampleDurationMs: "1000"
+      # 精确指标列表；非空时覆盖 metricsLevel（逗号分隔内部指标名）
+      # enableMetrics: "hcu_temp,hcu_power_usage"
+      # 访问 /metrics 的 IP 白名单，逗号分隔 IP 或 CIDR；留空表示允许所有 IP
+      allowedIPs: ""
+      # 是否连接 K8S 采集 Pod 信息；设置为 "false" 可跳过 K8S 连接（裸机部署场景）
+      connectK8s: "true"
+    image:
+      repository: harbor.sourcefind.cn:5443/hcu/admin/base/hcu-exporter
+      tag: v2.3.0
+    imagePullPolicy: IfNotPresent
+  nodeSelector:
+    hygon.com/hcu: "true"
+  ports:
+    - name: metrics
+      port: 16080
+      targetPort: 0
+  type: NodePort
+kubernetesClusterDomain: cluster.local

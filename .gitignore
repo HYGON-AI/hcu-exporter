@@ -1,0 +1,30 @@
+# Binaries and build artifacts
+/hcu-exporter
+/hcu-exporter-*.tar
+*.exe
+*.test
+*.out
+
+# Go
+# go.sum must be committed; ignore only local override files if any
+
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and crash dumps
+*.log
+hs_err_pid*.log
+
+# Local scratch / private notes (not part of the release tree)
+metrics.txt
+*.xlsx
+hcu-dcgm-master-*-合规-*.md
+*-质量安全扫描报告.md

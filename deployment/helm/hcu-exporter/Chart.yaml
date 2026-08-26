@@ -1,0 +1,14 @@
+# Copyright (c) 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v2
+name: hcu-exporter
+description: A Helm chart for HCU exporter
+version: "v2.3.0"
+kubeVersion: ">1.15.0-0"
+appVersion: "v2.3.0"
+keywords:
+  - hcu
+  - dtk
+  - compute
+  - monitoring

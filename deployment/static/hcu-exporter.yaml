@@ -1,0 +1,185 @@
+# Copyright (c) 2026 Hygon Information Technology Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0
+
+# 1). 修改yaml文件中Daemonset和Service相关端口号配置，默认16080
+# 2). 可选：配置 ALLOWED_IPS 限制 /metrics 访问来源（逗号分隔 IP 或 CIDR），留空表示不限制
+# 3). 可选：配置 CONNECT_K8S 为 "false" 可禁用 K8S 连接（裸机部署场景）
+# 4). 可选：配置 METRICS_LEVEL 为 low/medium/high 按采集成本启用指标档位（默认 high）
+# 5). 可选：配置 SAMPLE_DURATION_MS 采样类利用率窗口毫秒数（默认 1000，仅 high 档相关指标）
+# 6). 可选：配置 ENABLE_METRICS 精确指定指标（非空时覆盖 METRICS_LEVEL）
+# 7). 可选：配置 METRICS_DEFINE / LABEL_DEFINE 自定义导出指标名与 Label 名（JSON 字符串，留空表示不自定义）
+# 8). kubectl apply -f hcu-exporter.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: "hcu-exporter"
+  namespace: "kube-system"
+  labels:
+    app.kubernetes.io/name: "hcu-exporter"
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "hcu-exporter"
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: &portStr '16080'
+        prometheus.io/path: 'metrics'
+      labels:
+        app.kubernetes.io/name: "hcu-exporter"
+      name: "hcu-exporter"
+    spec:
+      hostNetwork: true
+      serviceAccount: pod-reader
+      nodeSelector:
+        hygon.com/hcu: "true"
+      containers:
+        - image: "harbor.sourcefind.cn:5443/hcu/admin/base/hcu-exporter:v3.0.0"
+          securityContext:
+            privileged: true
+          env:
+            - name: "NODE_NAME"
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: "HCU_EXPORTER_LISTEN"
+              value: *portStr
+            - name: "PULSE"
+              value: "10"
+            # 采集成本档位：low（快）/ medium / high（含约 1s 窗口类指标，默认）
+            - name: "METRICS_LEVEL"
+              value: "low"
+            # 采样类利用率窗口（毫秒），影响 hcu_*_sampled_usage / hcu_cu_util / hcu_wave_util；默认 1000
+            - name: "SAMPLE_DURATION_MS"
+              value: "1000"
+            # - name: "ENABLE_METRICS"
+            #   value: "hcu_temp,hcu_power_usage"
+            # - name: "KUBE_CONFIG"
+            #   value: "/root/.kube/config"
+            - name: "LOG_THRESHOLD"
+              value: "INFO"
+            - name: "LOG_VERBOSE"
+              value: "2"
+            - name: "HYLINK_DETAIL"
+              value: "false"
+            - name: "LOG_OUTPUT"
+              value: "true"
+            # 访问 /metrics 的 IP 白名单（逗号分隔 IP 或 CIDR）；留空表示允许所有 IP
+            # 示例：仅允许本机与集群内网 Prometheus 采集
+            # - name: "ALLOWED_IPS"
+            #   value: "127.0.0.1,10.0.0.0/8"
+            - name: "ALLOWED_IPS"
+              value: ""
+            # 是否连接 K8S 采集 Pod 信息；设置为 "false" 可跳过 K8S 连接（裸机部署场景）
+            - name: "CONNECT_K8S"
+              value: "true"
+            # 自定义导出指标名（内部指标名 -> 展示名），JSON 字符串；留空表示使用默认名称
+            # 示例：将 hcu_ce_count 导出为 ce_count，hcu_compute_unit_count 导出为 compute_unit_count
+            # - name: "METRICS_DEFINE"
+            #   value: '{"hcu_ce_count":"ce_count","hcu_compute_unit_count":"compute_unit_count"}'
+            - name: "METRICS_DEFINE"
+              value: ""
+            # 自定义指标 Label 名，JSON 字符串；全局生效，对所有包含该 Label 的指标统一重命名
+            # 示例：block_type -> b_type，hcu_pod_name -> pod_name，device_id -> uuid
+            # - name: "LABEL_DEFINE"
+            #   value: '{"block_type":"b_type","hcu_pod_name":"pod_name","device_id":"uuid"}'
+            - name: "LABEL_DEFINE"
+              value: ""
+          name: "hcu-exporter"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: "metrics"
+              containerPort: &portInt 16080
+              hostPort: *portInt
+          volumeMounts:
+            - name: "kubelet"
+              mountPath: "/var/lib/kubelet"
+              readOnly: true
+            - name: "dev"
+              mountPath: "/dev"
+            - name: "hostname"
+              readOnly: true
+              mountPath: "/etc/hostname"
+            - name: "vdev"
+              readOnly: true
+              mountPath: "/etc/vdev"
+            - name: "hyhal"
+              readOnly: true
+              mountPath: /opt/hyhal
+      volumes:
+        - name: "kubelet"
+          hostPath:
+            path: "/var/lib/kubelet"
+        - name: "dev"
+          hostPath:
+            path: "/dev"
+        - name: "hostname"
+          hostPath:
+            path: "/etc/hostname"
+        - name: "vdev"
+          hostPath:
+            path: "/etc/vdev"
+            type: DirectoryOrCreate
+        - name: "hyhal"
+          hostPath:
+            path: "/opt/hyhal"
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: "hcu-exporter"
+  namespace: "kube-system"
+  labels:
+    app.kubernetes.io/name: "hcu-exporter"
+spec:
+  selector:
+    app.kubernetes.io/name: "hcu-exporter"
+  ports:
+    - name: "metrics"
+      port: 16080
+  type: NodePort
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pod-reader
+  namespace: kube-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pod-reader
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - "*"
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - pods
+    verbs:
+      - '*'
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: read-pods-global
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: pod-reader
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
