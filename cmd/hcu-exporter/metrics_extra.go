@@ -479,12 +479,12 @@ func collectProcessMetrics(deviceInfos []dcgm.DeviceInfo, metricsHCUCollectMap m
 	if !needProcessHCUInfo {
 		return
 	}
-	needByPid := metricEnabled("hcu_process_hcu_percent") ||
-		metricEnabled("hcu_process_vram_usage_rate")
 
 	deviceSet := make(map[int]struct{}, len(deviceInfos))
+	deviceMemoryTotal := make(map[int]float64, len(deviceInfos))
 	for _, info := range deviceInfos {
 		deviceSet[info.DvInd] = struct{}{}
+		deviceMemoryTotal[info.DvInd] = info.MemoryTotal
 		if _, exists := metricsHCUCollectMap[info.DvInd]; !exists {
 			metricsHCUCollectMap[info.DvInd] = make(map[string]float64)
 		}
@@ -501,11 +501,18 @@ func collectProcessMetrics(deviceInfos []dcgm.DeviceInfo, metricsHCUCollectMap m
 	}
 
 	for _, proc := range processes {
-		recordProcessMetrics(proc, deviceSet, metricsHCUCollectMap, needByPid)
+		recordProcessMetrics(proc, deviceSet, deviceMemoryTotal, metricsHCUCollectMap)
 	}
 }
 
-func recordProcessMetrics(proc dcgm.Process, deviceSet map[int]struct{}, metricsHCUCollectMap map[int]map[string]float64, needByPid bool) {
+func processVramUsageRatePercent(vramUsed uint64, memoryTotal float64) float64 {
+	if memoryTotal <= 0 {
+		return 0
+	}
+	return float64(vramUsed) / memoryTotal * 100
+}
+
+func recordProcessMetrics(proc dcgm.Process, deviceSet map[int]struct{}, deviceMemoryTotal map[int]float64, metricsHCUCollectMap map[int]map[string]float64) {
 	name := proc.ProcessName
 	if name == "" {
 		name = "unknown"
@@ -528,34 +535,11 @@ func recordProcessMetrics(proc dcgm.Process, deviceSet map[int]struct{}, metrics
 		if metricEnabled("hcu_process_pasid") {
 			metricsHCUCollectMap[minor]["hcu_process_pasid-"+keySuffix] = float64(proc.Pasid)
 		}
-	}
-
-	if !needByPid {
-		return
-	}
-	enrichProcessByPid(proc.ProcessID, keySuffix, deviceSet, metricsHCUCollectMap)
-}
-
-func enrichProcessByPid(pid uint32, keySuffix string, deviceSet map[int]struct{}, metricsHCUCollectMap map[int]map[string]float64) {
-	info, err := dcgm.ProcessInfoByPid(pid)
-	if err != nil {
-		glog.V(5).Infof("ProcessInfoByPid(%d) error: %v", pid, err)
-		return
-	}
-	n := len(info.GPUIndex)
-	if len(info.GPUUsageRate) < n {
-		n = len(info.GPUUsageRate)
-	}
-	for i := 0; i < n; i++ {
-		minor := info.GPUIndex[i]
-		if _, ok := deviceSet[minor]; !ok {
-			continue
-		}
 		if metricEnabled("hcu_process_hcu_percent") {
-			metricsHCUCollectMap[minor]["hcu_process_hcu_percent-"+keySuffix] = float64(info.GPUUsageRate[i])
+			metricsHCUCollectMap[minor]["hcu_process_hcu_percent-"+keySuffix] = float64(proc.CuOccupancy)
 		}
 		if metricEnabled("hcu_process_vram_usage_rate") {
-			metricsHCUCollectMap[minor]["hcu_process_vram_usage_rate-"+keySuffix] = float64(info.VRAMUsageRate)
+			metricsHCUCollectMap[minor]["hcu_process_vram_usage_rate-"+keySuffix] = processVramUsageRatePercent(proc.VramUsage, deviceMemoryTotal[minor])
 		}
 	}
 }
