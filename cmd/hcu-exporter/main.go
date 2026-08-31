@@ -194,10 +194,11 @@ func initMetrics(cfg *util.MetricConfig) {
 	registerMetric("hcu_process_sdma_used", "Process SDMA usage from ProcessHCUInfo", processLabels, nil)
 	registerMetric("hcu_process_cu_occupancy", "Process CU occupancy from ProcessHCUInfo", processLabels, nil)
 	registerMetric("hcu_process_pasid", "Process address space ID (PASID) from ProcessHCUInfo", processLabels, nil)
-	registerMetric("hcu_process_hcu_percent", "Process GPU compute usage percent from ProcessInfoByPid", processLabels, nil)
-	registerMetric("hcu_process_vram_usage_rate", "Process VRAM usage rate percent from ProcessInfoByPid", processLabels, nil)
-	registerMetric("hcu_temp_edge_max", "HCU edge temperature max limit (Celsius)", hcuLabels, nil)
-	registerMetric("hcu_temp_edge_critical", "HCU edge temperature critical limit (Celsius)", hcuLabels, nil)
+	registerMetric("hcu_process_hcu_percent", "Process CU occupancy percent from ProcessHCUInfo", processLabels, nil)
+	registerMetric("hcu_process_vram_usage_rate", "Process VRAM usage rate percent derived from ProcessHCUInfo", processLabels, nil)
+	registerMetric("hcu_temp_edge_current", "HCU edge temperature current value from GetTempByMetric (Celsius)", hcuLabels, nil)
+	registerMetric("hcu_temp_edge_critical", "HCU edge temperature critical limit from GetTempByMetric (Celsius)", hcuLabels, nil)
+	registerMetric("hcu_temp_edge_emergency", "HCU edge temperature emergency limit from GetTempByMetric (Celsius)", hcuLabels, nil)
 	registerMetric("hcu_sensor_temp_max", "HCU sensor temperature max by sensor type (Celsius)", sensorLabels, nil)
 	registerMetric("hcu_sensor_temp_critical", "HCU sensor temperature critical by sensor type (Celsius)", sensorLabels, nil)
 	registerMetric("hcu_overdrive", "GFX overdrive level percent", hcuLabels, nil)
@@ -453,10 +454,10 @@ var (
 			}
 			return float64(status)
 		},
-		"hcu_temp_edge_max": func(idx int) float64 {
-			temp, err := dcgm.GetTempByMetric(idx, dcgm.RSMI_TEMP_MAX)
+		"hcu_temp_edge_current": func(idx int) float64 {
+			temp, err := dcgm.GetTempByMetric(idx, dcgm.RSMI_TEMP_CURRENT)
 			if err != nil {
-				glog.Errorf("Get TempMax error: %v", err)
+				glog.Errorf("Get TempCurrent error: %v", err)
 			}
 			return temp
 		},
@@ -464,6 +465,13 @@ var (
 			temp, err := dcgm.GetTempByMetric(idx, dcgm.RSMI_TEMP_CRITICAL)
 			if err != nil {
 				glog.Errorf("Get TempCritical error: %v", err)
+			}
+			return temp
+		},
+		"hcu_temp_edge_emergency": func(idx int) float64 {
+			temp, err := dcgm.GetTempByMetric(idx, dcgm.RSMI_TEMP_EMERGENCY)
+			if err != nil {
+				glog.Errorf("Get TempEmergency error: %v", err)
 			}
 			return temp
 		},
