@@ -35,6 +35,15 @@ func TestHealthStatusValue(t *testing.T) {
 	}
 }
 
+func TestProcessVramUsageRatePercent(t *testing.T) {
+	if got := processVramUsageRatePercent(512, 2048); got != 25 {
+		t.Fatalf("processVramUsageRatePercent=%v, want 25", got)
+	}
+	if processVramUsageRatePercent(100, 0) != 0 {
+		t.Fatal("zero memory total should return 0")
+	}
+}
+
 func TestNormalizeBusID(t *testing.T) {
 	if normalizeBusID(" 0000:09:00.0 ") != "0000:09:00.0" {
 		t.Fatal("normalizeBusID trim/lower failed")

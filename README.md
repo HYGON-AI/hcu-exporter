@@ -435,8 +435,9 @@ Exporter 使用独立 Registry，仅暴露由 `--metrics-level` 或 `--enable-me
 | `hcu_sensor_temp`                  | 传感器温度（℃）；`sensor_type`=`edge`/`junction`/`mem`/`core` |
 | `hcu_sensor_temp_max`              | 上述四路传感器温度上限（℃），`GetTempBySensor`+`RSMI_TEMP_MAX` |
 | `hcu_sensor_temp_critical`         | 上述四路传感器临界温度（℃），`GetTempBySensor`+`RSMI_TEMP_CRITICAL` |
-| `hcu_temp_edge_max`                | Sensor edge 温度上限（℃）                            |
-| `hcu_temp_edge_critical`           | Sensor edge 临界温度（℃）                            |
+| `hcu_temp_edge_current`            | Sensor edge 当前温度（℃），`GetTempByMetric`+`RSMI_TEMP_CURRENT` |
+| `hcu_temp_edge_critical`           | Sensor edge 临界温度（℃），`GetTempByMetric`+`RSMI_TEMP_CRITICAL` |
+| `hcu_temp_edge_emergency`          | Sensor edge 紧急温度（℃），`GetTempByMetric`+`RSMI_TEMP_EMERGENCY` |
 | `hcu_throttle`                     | 降频标志（1=生效），标签 `throttle_type`             |
 | `hcu_sclk_max`                     | GFX 最大频率（MHz）                                  |
 | `hcu_mclk_max`                     | 显存最大频率（MHz）                                  |
