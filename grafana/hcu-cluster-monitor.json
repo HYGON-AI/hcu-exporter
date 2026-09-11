@@ -2,8 +2,8 @@
   "__inputs": [
     {
       "name": "DS_PROMETHEUS",
-      "label": "Prometheus",
-      "description": "",
+      "label": "Prometheus (HCU Exporter)",
+      "description": "Prometheus datasource containing HCU-Exporter v3 metrics",
       "type": "datasource",
       "pluginId": "prometheus",
       "pluginName": "Prometheus"
@@ -12,28 +12,10 @@
   "__elements": {},
   "__requires": [
     {
-      "type": "panel",
-      "id": "bargauge",
-      "name": "Bar gauge",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "gauge",
-      "name": "Gauge",
-      "version": ""
-    },
-    {
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
       "version": "10.1.1"
-    },
-    {
-      "type": "panel",
-      "id": "piechart",
-      "name": "Pie chart",
-      "version": ""
     },
     {
       "type": "datasource",
@@ -49,14 +31,38 @@
     },
     {
       "type": "panel",
-      "id": "table",
-      "name": "Table",
+      "id": "gauge",
+      "name": "Gauge",
       "version": ""
     },
     {
       "type": "panel",
       "id": "timeseries",
       "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "bargauge",
+      "name": "Bar gauge",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "piechart",
+      "name": "Pie chart",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
       "version": ""
     }
   ],
@@ -70,27 +76,459 @@
         },
         "enable": true,
         "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
+        "iconColor": "rgba(0,211,255,1)",
         "name": "Annotations & Alerts",
         "type": "dashboard"
       }
     ]
   },
+  "description": "HCU-Exporter v3 集群级容量、可靠性、总线与 Kubernetes/vHCU 分配总览。",
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
     {
+      "id": 1,
+      "type": "text",
+      "title": "HCU 集群总览",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "pluginVersion": "10.4.0",
+      "options": {
+        "mode": "markdown",
+        "content": "集群级容量、利用率、虚拟化余量与可靠性总览。默认使用低成本 `hcu_utilizationrate` 作为基础活跃指标；总 ECC 使用新版 `*_count_total`。  \n筛选 Namespace/Pod/Container 时，可下钻到 Kubernetes 分配关系。"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "HCU 主机数",
+      "description": "",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 3,
+        "h": 4
+      },
+      "pluginVersion": "10.4.0",
       "fieldConfig": {
         "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "count(count by (node) (hcu_utilizationrate{node=~\"$node\"}))",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "HCU 总数",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 3,
+        "y": 3,
+        "w": 3,
+        "h": 4
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "count(max without (hcu_pod_namespace,hcu_pod_name,container) (hcu_utilizationrate{node=~\"$node\",minor_number=~\"$hcu_id\"}))",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "gauge",
+      "title": "平均利用率",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 3,
+        "w": 3,
+        "h": 4
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "avg(hcu_utilizationrate{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "gauge",
+      "title": "显存占用率",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 9,
+        "y": 3,
+        "w": 3,
+        "h": 4
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum(hcu_usedmemory_bytes{node=~\"$node\",minor_number=~\"$hcu_id\"}) / sum(hcu_memorycap_bytes{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "总功耗",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 3,
+        "w": 3,
+        "h": 4
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(hcu_power_usage{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "vHCU 数量",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 15,
+        "y": 3,
+        "w": 3,
+        "h": 4
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(vhcu_count{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "UE 总数",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 3,
+        "w": 3,
+        "h": 4
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -101,24 +539,16 @@
               },
               {
                 "color": "red",
-                "value": 80
+                "value": 1
               }
             ]
-          },
-          "unit": "none"
+          }
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 0,
-        "y": 0
-      },
-      "id": 1,
       "options": {
-        "colorMode": "background",
-        "graphMode": "none",
+        "colorMode": "value",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -128,10 +558,9 @@
           "fields": "",
           "values": false
         },
-        "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -139,57 +568,133 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "count(count(hcu_power_usage) by (node))",
-          "format": "time_series",
-          "instant": false,
+          "expr": "sum(hcu_ue_count_total{node=~\"$node\",minor_number=~\"$hcu_id\"})",
           "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
+          "refId": "A",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         }
-      ],
-      "title": "HCU主机数量",
-      "type": "stat"
+      ]
     },
     {
+      "id": 9,
+      "type": "stat",
+      "title": "[Medium] 不健康卡",
+      "description": "",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "",
+      "gridPos": {
+        "x": 21,
+        "y": 3,
+        "w": 3,
+        "h": 4
+      },
+      "pluginVersion": "10.4.0",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
+          "unit": "short",
           "mappings": [],
-          "unit": "short"
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 8,
-        "w": 4,
-        "x": 4,
-        "y": 0
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "id": 3,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "count(hcu_health_status{node=~\"$node\",minor_number=~\"$hcu_id\"} == 0)",
+          "legendFormat": "__auto",
+          "refId": "A",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "piechart",
+      "title": "HCU 型号分布",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 6,
+        "h": 8
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
       "options": {
         "displayLabels": [
+          "name",
           "percent"
         ],
         "legend": {
           "displayMode": "list",
           "placement": "right",
           "showLegend": true,
-          "values": []
+          "values": [
+            "value"
+          ]
         },
         "pieType": "donut",
         "reduceOptions": {
@@ -204,7 +709,6 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -212,30 +716,36 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "count(hcu_power_usage{node=~\"$Node\", minor_number=~\"$HCU\"}) by (name)",
+          "expr": "count by (name) (max without (hcu_pod_namespace,hcu_pod_name,container) (hcu_utilizationrate{node=~\"$node\",minor_number=~\"$hcu_id\"}))",
+          "legendFormat": "{{name}}",
+          "refId": "A",
+          "instant": true,
+          "range": false,
           "format": "time_series",
-          "instant": false,
-          "legendFormat": "{{label_name}}",
-          "range": true,
-          "refId": "A"
+          "hide": false,
+          "exemplar": false
         }
-      ],
-      "title": "HCU类型",
-      "type": "piechart"
+      ]
     },
     {
+      "id": 11,
+      "type": "bargauge",
+      "title": "HCU 状态数量",
+      "description": "空闲判定修复为合法 PromQL，并通过 device_id 做向量匹配。",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "",
+      "gridPos": {
+        "x": 6,
+        "y": 7,
+        "w": 6,
+        "h": 8
+      },
+      "pluginVersion": "10.4.0",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "fixedColor": "green",
-            "mode": "fixed"
-          },
+          "unit": "short",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -245,301 +755,21 @@
                 "value": null
               },
               {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 8,
-        "y": 0
-      },
-      "id": 7,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "text": {},
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(hcu_compute_unit_count{node=~\"$Node\", minor_number=~\"$HCU\"})",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "HCU计算单元数量",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [],
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
                 "color": "orange",
                 "value": 70
               },
               {
                 "color": "red",
-                "value": 85
+                "value": 90
               }
             ]
           },
-          "unit": "percent"
+          "min": 0
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 8,
-        "w": 4,
-        "x": 12,
-        "y": 0
-      },
-      "id": 8,
       "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "avg(hcu_utilizationrate{node=~\"$Node\", minor_number=~\"$HCU\"})",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "HCU平均利用率",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [],
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 85
-              }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 4,
-        "x": 16,
-        "y": 0
-      },
-      "id": 18,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(hcu_usedmemory_bytes{node=~\"$Node\", minor_number=~\"$HCU\"})/sum(hcu_memorycap_bytes{node=~\"$Node\", minor_number=~\"$HCU\"})",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "HCU显存占用率",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [],
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 85
-              }
-            ]
-          },
-          "unit": "watt"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 4,
-        "x": 20,
-        "y": 0
-      },
-      "id": 9,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(hcu_power_usage{node=~\"$Node\", minor_number=~\"$HCU\"})",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "HCU总功耗",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 0,
-        "y": 4
-      },
-      "id": 2,
-      "options": {
-        "displayMode": "lcd",
+        "displayMode": "gradient",
         "minVizHeight": 10,
         "minVizWidth": 0,
         "orientation": "horizontal",
@@ -553,7 +783,6 @@
         "showUnfilled": true,
         "valueMode": "color"
       },
-      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -561,13 +790,14 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "count(hcu_power_usage{node=~\"$Node\", minor_number=~\"$HCU\"})",
+          "expr": "count(max without (hcu_pod_namespace,hcu_pod_name,container) (hcu_utilizationrate{node=~\"$node\",minor_number=~\"$hcu_id\"}))",
+          "legendFormat": "总卡数",
+          "refId": "A",
+          "instant": true,
+          "range": false,
           "format": "time_series",
-          "instant": false,
-          "legendFormat": "HCU总数",
-          "range": true,
-          "refId": "A"
+          "hide": false,
+          "exemplar": false
         },
         {
           "datasource": {
@@ -575,29 +805,51 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "count(hcu_usedmemory_bytes{node=~\"$Node\", minor_number=~\"$HCU\"} < 5000000 AND hcu_utilizationrate{node=~\"$Node\", minor_number=~\"$HCU\"}< 0.001)",
+          "expr": "count((hcu_utilizationrate{node=~\"$node\",minor_number=~\"$hcu_id\"} < 1) and on(device_id) (hcu_usedmemory_bytes{node=~\"$node\",minor_number=~\"$hcu_id\"} < 67108864))",
+          "legendFormat": "空闲卡(<1%,<64MiB)",
+          "refId": "B",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
           "hide": false,
-          "instant": false,
-          "legendFormat": "空闲HCU",
-          "range": true,
-          "refId": "B"
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "count(hcu_utilizationrate{node=~\"$node\",minor_number=~\"$hcu_id\"} >= 80)",
+          "legendFormat": "高负载卡(>=80%)",
+          "refId": "C",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         }
-      ],
-      "title": "HCU数量",
-      "type": "bargauge"
+      ]
     },
     {
+      "id": 12,
+      "type": "gauge",
+      "title": "可分配 CU 余量",
+      "description": "虚拟化资源余量（remaining / total）。",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 7,
+        "w": 6,
+        "h": 8
+      },
+      "pluginVersion": "10.4.0",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "fixedColor": "green",
-            "mode": "fixed"
-          },
+          "unit": "percent",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -607,26 +859,21 @@
                 "value": null
               },
               {
+                "color": "orange",
+                "value": 70
+              },
+              {
                 "color": "red",
-                "value": 80
+                "value": 90
               }
             ]
           },
-          "unit": "bytes"
+          "min": 0,
+          "max": 100
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 8,
-        "y": 4
-      },
-      "id": 5,
       "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -635,10 +882,9 @@
           "fields": "",
           "values": false
         },
-        "text": {},
-        "textMode": "auto"
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
       },
-      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -646,37 +892,36 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(hcu_memorycap_bytes{node=~\"$Node\", minor_number=~\"$HCU\"})",
-          "format": "time_series",
-          "instant": false,
+          "expr": "100 * sum(hcu_compute_unit_remaining_count{node=~\"$node\",minor_number=~\"$hcu_id\"}) / sum(hcu_compute_unit_count{node=~\"$node\",minor_number=~\"$hcu_id\"})",
           "legendFormat": "__auto",
+          "refId": "A",
+          "instant": false,
           "range": true,
-          "refId": "A"
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         }
-      ],
-      "title": "HCU显存总量",
-      "type": "stat"
+      ]
     },
     {
+      "id": 13,
+      "type": "gauge",
+      "title": "可分配显存余量",
+      "description": "虚拟化显存余量。",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "",
+      "gridPos": {
+        "x": 18,
+        "y": 7,
+        "w": 6,
+        "h": 8
+      },
+      "pluginVersion": "10.4.0",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": false,
-            "inspect": false
-          },
+          "unit": "percent",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -686,41 +931,32 @@
                 "value": null
               },
               {
+                "color": "orange",
+                "value": 70
+              },
+              {
                 "color": "red",
-                "value": 80
+                "value": 90
               }
             ]
-          }
+          },
+          "min": 0,
+          "max": 100
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 8
-      },
-      "id": 11,
       "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
           ],
-          "show": false
+          "fields": "",
+          "values": false
         },
-        "frameIndex": 3,
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": false,
-            "displayName": "节点"
-          }
-        ]
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
       },
-      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -728,118 +964,99 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "hcu_ue_count>0",
-          "format": "time_series",
-          "instant": true,
+          "expr": "100 * sum(hcu_memory_remaining{node=~\"$node\",minor_number=~\"$hcu_id\"}) / sum(hcu_memorycap_bytes{node=~\"$node\",minor_number=~\"$hcu_id\"})",
           "legendFormat": "__auto",
-          "range": false,
-          "refId": "A"
+          "refId": "A",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         }
-      ],
-      "title": "异常HCU列表",
-      "transformations": [
-        {
-          "id": "seriesToRows",
-          "options": {}
-        },
-        {
-          "id": "extractFields",
-          "options": {
-            "format": "kvp",
-            "source": "Metric"
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Metric": true,
-              "Time": true,
-              "Value": true,
-              "__name__": true,
-              "container": true,
-              "hcu_pod_name": true,
-              "hcu_pod_namespace": true,
-              "device_id": true,
-              "instance": true,
-              "job": true,
-              "pcieBus_number": true
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "集群 HCU 平均利用率",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
             },
-            "indexByName": {
-              "Metric": 1,
-              "Time": 0,
-              "Value": 2,
-              "__name__": 3,
-              "block_type": 7,
-              "device_id": 8,
-              "instance": 9,
-              "job": 10,
-              "minor_number": 6,
-              "name": 5,
-              "node": 4,
-              "pcieBus_number": 11
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
             },
-            "renameByName": {
-              "block_type": "不可恢复错误类型",
-              "minor_number": "HCU卡序号",
-              "name": "HCU卡类型",
-              "node": "节点"
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
             }
           }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [],
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 85
-              }
-            ]
-          }
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 8,
-        "w": 4,
-        "x": 12,
-        "y": 8
-      },
-      "id": 20,
       "options": {
-        "orientation": "auto",
-        "reduceOptions": {
+        "legend": {
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
-          "values": false
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
-      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -847,175 +1064,36 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(vhcu_count{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"})",
-          "format": "time_series",
+          "expr": "avg(hcu_utilizationrate{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "Cluster avg",
+          "refId": "A",
           "instant": false,
-          "legendFormat": "__auto",
           "range": true,
-          "refId": "A"
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         }
-      ],
-      "title": "HCU虚拟卡数量",
-      "type": "gauge"
+      ]
     },
     {
+      "id": 15,
+      "type": "timeseries",
+      "title": "集群显存占用率",
+      "description": "",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [],
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 85
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 4,
-        "x": 16,
-        "y": 8
+        "x": 8,
+        "y": 15,
+        "w": 8,
+        "h": 7
       },
-      "id": 19,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(hcu_memory_remaining{node=~\"$Node\", minor_number=~\"$HCU\"})",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "HCU虚拟化可分配显存余量",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
+      "pluginVersion": "10.4.0",
       "fieldConfig": {
         "defaults": {
-          "mappings": [],
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 85
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 4,
-        "x": 20,
-        "y": 8
-      },
-      "id": 6,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(hcu_compute_unit_remaining_count{node=~\"$Node\", minor_number=~\"$HCU\"})",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "HCU虚拟化可分配CU余量",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": false,
-            "inspect": false
-          },
+          "unit": "percent",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1023,212 +1101,62 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
+          },
+          "min": 0,
+          "max": 100,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "功率"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "watt"
-              },
-              {
-                "id": "custom.width",
-                "value": 62
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "HCU利用率"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "custom.width",
-                "value": 92
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "显存占用"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "bytes"
-              },
-              {
-                "id": "custom.width",
-                "value": 80
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "温度"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "celsius"
-              },
-              {
-                "id": "custom.width",
-                "value": 68
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "节点"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 75
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "HCU类型"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 79
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Namespace"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Pod"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 82
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Container"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 82
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "HCU序号"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 78
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "带宽"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 97
-              },
-              {
-                "id": "unit",
-                "value": "MiBs"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "频率"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 89
-              },
-              {
-                "id": "unit",
-                "value": "rotmhz"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 16
-      },
-      "id": 10,
       "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
+        "legend": {
+          "calcs": [
+            "lastNotNull"
           ],
-          "show": false
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "frameIndex": 0,
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": false,
-            "displayName": "节点"
-          }
-        ]
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
-      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1236,13 +1164,410 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "hcu_power_usage{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
+          "expr": "100 * sum(hcu_usedmemory_bytes{node=~\"$node\",minor_number=~\"$hcu_id\"}) / sum(hcu_memorycap_bytes{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "Cluster VRAM",
+          "refId": "A",
+          "instant": false,
+          "range": true,
           "format": "time_series",
-          "instant": true,
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "A"
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "集群总功耗",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 15,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(hcu_power_usage{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "Cluster power",
+          "refId": "A",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "节点利用率",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 12,
+        "h": 7
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "avg by (node) (hcu_utilizationrate{node=~\"$node\"})",
+          "legendFormat": "{{node}}",
+          "refId": "A",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "节点显存占用率",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 22,
+        "w": 12,
+        "h": 7
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "min": 0,
+          "max": 100,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum by (node) (hcu_usedmemory_bytes{node=~\"$node\"}) / sum by (node) (hcu_memorycap_bytes{node=~\"$node\"})",
+          "legendFormat": "{{node}}",
+          "refId": "A",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "ECC CE/UE 总量",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (node) (hcu_ce_count_total{node=~\"$node\"})",
+          "legendFormat": "CE {{node}}",
+          "refId": "A",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         },
         {
           "datasource": {
@@ -1250,13 +1575,308 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "hcu_usedmemory_bytes{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
+          "expr": "sum by (node) (hcu_ue_count_total{node=~\"$node\"})",
+          "legendFormat": "UE {{node}}",
+          "refId": "B",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
           "hide": false,
-          "instant": true,
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "B"
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "PCIe Replay Count",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 29,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (node) (hcu_pcie_replay_count{node=~\"$node\"})",
+          "legendFormat": "{{node}}",
+          "refId": "A",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Bad Pages",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 29,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (node,page_status) (hcu_bad_pages{node=~\"$node\"})",
+          "legendFormat": "{{node}} {{page_status}}",
+          "refId": "A",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "[High] PCIe 集群吞吐",
+      "description": "需要 high。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "MiBs",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(hcu_pcie_sent_mb{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "TX",
+          "refId": "A",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         },
         {
           "datasource": {
@@ -1264,13 +1884,112 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "hcu_utilizationrate{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
+          "expr": "sum(hcu_pcie_receive_mb{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "RX",
+          "refId": "B",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
           "hide": false,
-          "instant": true,
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "C"
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "[Medium] DF 集群带宽",
+      "description": "需要 medium/high。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 36,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(hcu_df_bw_read{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "Read",
+          "refId": "A",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         },
         {
           "datasource": {
@@ -1278,13 +1997,112 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "hcu_temp{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
+          "expr": "sum(hcu_df_bw_write{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "Write",
+          "refId": "B",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
           "hide": false,
-          "instant": true,
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "D"
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "[Medium] Hylink/XHCL 集群带宽",
+      "description": "需要 medium/high。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 36,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "sum(hcu_hylink_send_recv{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "Hylink total",
+          "refId": "A",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         },
         {
           "datasource": {
@@ -1292,13 +2110,84 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "hcu_pciebw_mb{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
+          "expr": "sum(hcu_xhcl_bw{node=~\"$node\",minor_number=~\"$hcu_id\"})",
+          "legendFormat": "XHCL",
+          "refId": "B",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
           "hide": false,
+          "exemplar": false
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "table",
+      "title": "异常 HCU 快速定位",
+      "description": "任一 Health=0、UE>0、XHCL error!=0 或 PCIe replay>0 会出现在对应序列中。",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 43,
+        "w": 24,
+        "h": 9
+      },
+      "pluginVersion": "10.4.0",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "hcu_health_status{node=~\"$node\",minor_number=~\"$hcu_id\"} == 0",
+          "legendFormat": "",
+          "refId": "A",
           "instant": true,
-          "legendFormat": "__auto",
           "range": false,
-          "refId": "E"
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         },
         {
           "datasource": {
@@ -1306,27 +2195,57 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "hcu_sclk{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
-          "hide": false,
+          "expr": "hcu_ue_count_total{node=~\"$node\",minor_number=~\"$hcu_id\"} > 0",
+          "legendFormat": "",
+          "refId": "B",
           "instant": true,
-          "legendFormat": "__auto",
           "range": false,
-          "refId": "F"
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "hcu_xhcl_error_status{node=~\"$node\",minor_number=~\"$hcu_id\"} != 0",
+          "legendFormat": "",
+          "refId": "C",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "hcu_pcie_replay_count{node=~\"$node\",minor_number=~\"$hcu_id\"} > 0",
+          "legendFormat": "",
+          "refId": "D",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         }
       ],
-      "title": "HCU卡k8s集群使用详情",
       "transformations": [
         {
           "id": "labelsToFields",
           "options": {
             "keepLabels": [
-              "name",
               "node",
-              "hcu_pod_namespace",
-              "hcu_pod_name",
-              "container",
-              "minor_number"
+              "name",
+              "minor_number",
+              "device_id",
+              "pcieBus_number",
+              "health"
             ],
             "mode": "columns"
           }
@@ -1341,57 +2260,41 @@
             "excludeByName": {
               "Time": true
             },
-            "indexByName": {
-              "Time": 0,
-              "container": 6,
-              "hcu_pod_name": 5,
-              "hcu_pod_namespace": 4,
-              "hcu_power_usage": 9,
-              "hcu_temp": 10,
-              "hcu_usedmemory_bytes": 7,
-              "hcu_utilizationrate": 8,
-              "minor_number": 3,
-              "name": 2,
-              "node": 1
-            },
             "renameByName": {
-              "container": "Container",
-              "hcu_pciebw_mb": "带宽",
-              "hcu_pod_name": "Pod",
-              "hcu_pod_namespace": "Namespace",
-              "hcu_power_usage": "功率",
-              "hcu_sclk": "频率",
-              "hcu_temp": "温度",
-              "hcu_usedmemory_bytes": "显存占用",
-              "hcu_utilizationrate": "HCU利用率",
-              "minor_number": "HCU序号",
-              "name": "HCU类型",
-              "node": "节点"
+              "node": "节点",
+              "name": "型号",
+              "minor_number": "HCU",
+              "device_id": "设备ID",
+              "pcieBus_number": "PCIe BDF",
+              "health": "健康文本",
+              "hcu_health_status": "Health",
+              "hcu_ue_count_total": "UE",
+              "hcu_xhcl_error_status": "XHCL Error",
+              "hcu_pcie_replay_count": "PCIe Replay"
             }
           }
         }
-      ],
-      "type": "table"
+      ]
     },
     {
+      "id": 26,
+      "type": "table",
+      "title": "HCU Kubernetes 分配详情",
+      "description": "筛选器可按 Namespace/Pod/Container 下钻。",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 52,
+        "w": 12,
+        "h": 10
+      },
+      "pluginVersion": "10.4.0",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": false,
-            "inspect": false
-          },
+          "unit": "short",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1399,56 +2302,52 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
           }
         },
         "overrides": [
           {
             "matcher": {
               "id": "byName",
-              "options": "功率"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "watt"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "HCU利用率"
+              "options": "利用率"
             },
             "properties": [
               {
                 "id": "unit",
                 "value": "percent"
-              },
-              {
-                "id": "custom.minWidth",
-                "value": 80
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "显存占用"
+              "options": "显存%"
             },
             "properties": [
               {
                 "id": "unit",
-                "value": "bytes"
-              },
+                "value": "percent"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "功耗"
+            },
+            "properties": [
               {
-                "id": "custom.width",
-                "value": 72
+                "id": "unit",
+                "value": "watt"
               }
             ]
           },
@@ -1461,136 +2360,14 @@
               {
                 "id": "unit",
                 "value": "celsius"
-              },
-              {
-                "id": "custom.minWidth",
-                "value": 80
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "节点"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 74
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "HCU类型"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 77
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Namespace"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Pod"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 147
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "HCU序号"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 74
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "vHCU CU数量"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 110
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "vHCU显存容量"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 110
-              },
-              {
-                "id": "unit",
-                "value": "bytes"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "vHCU序号"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 84
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Container"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 120
               }
             ]
           }
         ]
       },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 16
-      },
-      "id": 21,
       "options": {
         "cellHeight": "sm",
+        "showHeader": true,
         "footer": {
           "countRows": false,
           "fields": "",
@@ -1598,17 +2375,8 @@
             "sum"
           ],
           "show": false
-        },
-        "frameIndex": 0,
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": false,
-            "displayName": "节点"
-          }
-        ]
+        }
       },
-      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1616,13 +2384,14 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "vhcu_usedmemory_bytes{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
-          "hide": false,
+          "expr": "hcu_utilizationrate{node=~\"$node\",minor_number=~\"$hcu_id\",hcu_pod_namespace=~\"$namespace\",hcu_pod_name=~\"$pod\",container=~\"$container\"}",
+          "legendFormat": "",
+          "refId": "A",
           "instant": true,
-          "legendFormat": "__auto",
           "range": false,
-          "refId": "B"
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         },
         {
           "datasource": {
@@ -1630,13 +2399,14 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "vhcu_utilizationrate{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
-          "hide": false,
+          "expr": "hcu_vram_percent{node=~\"$node\",minor_number=~\"$hcu_id\",hcu_pod_namespace=~\"$namespace\",hcu_pod_name=~\"$pod\",container=~\"$container\"}",
+          "legendFormat": "",
+          "refId": "B",
           "instant": true,
-          "legendFormat": "__auto",
           "range": false,
-          "refId": "C"
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         },
         {
           "datasource": {
@@ -1644,30 +2414,42 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "vhcu_temp{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
-          "hide": false,
+          "expr": "hcu_power_usage{node=~\"$node\",minor_number=~\"$hcu_id\",hcu_pod_namespace=~\"$namespace\",hcu_pod_name=~\"$pod\",container=~\"$container\"}",
+          "legendFormat": "",
+          "refId": "C",
           "instant": true,
-          "legendFormat": "__auto",
           "range": false,
-          "refId": "D"
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "hcu_temp{node=~\"$node\",minor_number=~\"$hcu_id\",hcu_pod_namespace=~\"$namespace\",hcu_pod_name=~\"$pod\",container=~\"$container\"}",
+          "legendFormat": "",
+          "refId": "D",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         }
       ],
-      "title": "虚拟HCU卡k8s集群使用详情",
       "transformations": [
         {
           "id": "labelsToFields",
           "options": {
             "keepLabels": [
-              "name",
               "node",
-              "hcu_pod_name",
-              "hcu_pod_namespace",
-              "container",
-              "vhcu_computer_unit",
-              "vhcu_memory_cap",
+              "name",
               "minor_number",
-              "vhcu_minor_number"
+              "hcu_pod_namespace",
+              "hcu_pod_name",
+              "container"
             ],
             "mode": "columns"
           }
@@ -1680,329 +2462,43 @@
           "id": "organize",
           "options": {
             "excludeByName": {
-              "Time": true,
-              "vhcu_temp": true
-            },
-            "indexByName": {
-              "Time": 0,
-              "container": 9,
-              "hcu_pod_name": 8,
-              "hcu_pod_namespace": 7,
-              "minor_number": 3,
-              "name": 2,
-              "node": 1,
-              "vhcu_computer_unit": 5,
-              "vhcu_memory_cap": 6,
-              "vhcu_minor_number": 4,
-              "vhcu_temp": 12,
-              "vhcu_usedmemory_bytes": 10,
-              "vhcu_utilizationrate": 11
+              "Time": true
             },
             "renameByName": {
-              "container": "Container",
-              "hcu_pod_name": "Pod",
-              "hcu_pod_namespace": "Namespace",
-              "hcu_power_usage": "功率",
-              "hcu_temp": "温度",
-              "hcu_usedmemory_bytes": "显存占用",
-              "hcu_utilizationrate": "HCU利用率",
-              "minor_number": "HCU序号",
-              "name": "HCU类型",
               "node": "节点",
-              "vhcu_computer_unit": "vHCU CU数量",
-              "vhcu_memory_cap": "vHCU显存容量",
-              "vhcu_minor_number": "vHCU序号",
-              "vhcu_temp": "温度",
-              "vhcu_usedmemory_bytes": "显存占用",
-              "vhcu_utilizationrate": "HCU利用率"
+              "name": "型号",
+              "minor_number": "HCU",
+              "hcu_pod_namespace": "Namespace",
+              "hcu_pod_name": "Pod",
+              "container": "Container",
+              "hcu_utilizationrate": "利用率",
+              "hcu_vram_percent": "显存%",
+              "hcu_power_usage": "功耗",
+              "hcu_temp": "温度"
             }
           }
         }
-      ],
-      "type": "table"
+      ]
     },
     {
+      "id": 27,
+      "type": "table",
+      "title": "vHCU Kubernetes 分配详情",
+      "description": "新版 vHCU 指标统一使用 vhcu_*。",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 25
-      },
-      "id": 13,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "hcu_utilizationrate{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",pcieBus_number=\"{{pcieBus_number}}\",namespace=\"{{hcu_pod_namespace}}\",pod=\"{{hcu_pod_name}}\",container=\"{{container}}\"",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "hcu_utilizationrate{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=\"\", hcu_pod_name=\"\",container=\"\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",pcieBus_number=\"{{pcieBus_number}}\"",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        }
-      ],
-      "title": "HCU利用率",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "celsius"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
         "x": 12,
-        "y": 25
+        "y": 52,
+        "w": 12,
+        "h": 10
       },
-      "id": 12,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "hcu_temp{node=~\"$Node\",minor_number=~\"$HCU\",hcu_pod_namespace=~\"$Namespace\",hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "hcu_temp{node=~\"$Node\",minor_number=~\"$HCU\",hcu_pod_namespace=\"\",hcu_pod_name=\"\",container=\"\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",pcieBus_number=\"{{pcieBus_number}}\"",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        }
-      ],
-      "title": "HCU温度",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
+      "pluginVersion": "10.4.0",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
+          "unit": "short",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -2010,807 +2506,343 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 33
-      },
-      "id": 15,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "hcu_usedmemory_bytes{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}/hcu_memorycap_bytes{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",pcieBus_number=\"{{pcieBus_number}}\",namespace=\"{{hcu_pod_namespace}}\",pod=\"{{hcu_pod_name}}\",container=\"{{container}}\"",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "hcu_usedmemory_bytes{node=~\"$Node\", minor_number=~\"$HCU\",hcu_pod_namespace=\"\",hcu_pod_name=\"\",container=\"\"}/hcu_memorycap_bytes{node=~\"$Node\", minor_number=~\"$HCU\",hcu_pod_namespace=\"\",hcu_pod_name=\"\",container=\"\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",pcieBus_number=\"{{pcieBus_number}}\"",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        }
-      ],
-      "title": "HCU显存利用率",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
           },
           "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
             },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
+            "filterable": true,
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "利用率"
             },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
+            "properties": [
               {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
+                "id": "unit",
+                "value": "percent"
               }
             ]
           },
-          "unit": "watt"
-        },
-        "overrides": []
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "显存%"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "显存占用"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "vHCU显存上限"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "温度"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "celsius"
+              }
+            ]
+          }
+        ]
       },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 33
-      },
-      "id": 14,
-      "links": [],
       "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
+        "cellHeight": "sm",
+        "showHeader": true,
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
           ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
+          "show": false
         }
       },
-      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "hcu_power_usage{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",pcieBus_number=\"{{pcieBus_number}}\",namespace=\"{{hcu_pod_namespace}}\",pod=\"{{hcu_pod_name}}\",container=\"{{container}}\"",
-          "range": true,
+          "expr": "vhcu_utilizationrate{node=~\"$node\",minor_number=~\"$hcu_id\",hcu_pod_namespace=~\"$namespace\",hcu_pod_name=~\"$pod\",container=~\"$container\"}",
+          "legendFormat": "",
           "refId": "A",
-          "useBackend": false
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "hcu_power_usage{node=~\"$Node\", minor_number=~\"$HCU\",hcu_pod_namespace=\"\",hcu_pod_name=\"\",container=\"\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",pcieBus_number=\"{{pcieBus_number}}\"",
-          "range": true,
+          "expr": "vhcu_usedmemory_percent{node=~\"$node\",minor_number=~\"$hcu_id\",hcu_pod_namespace=~\"$namespace\",hcu_pod_name=~\"$pod\",container=~\"$container\"}",
+          "legendFormat": "",
           "refId": "B",
-          "useBackend": false
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "vhcu_usedmemory_bytes{node=~\"$node\",minor_number=~\"$hcu_id\",hcu_pod_namespace=~\"$namespace\",hcu_pod_name=~\"$pod\",container=~\"$container\"}",
+          "legendFormat": "",
+          "refId": "C",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "vhcu_temp{node=~\"$node\",minor_number=~\"$hcu_id\",hcu_pod_namespace=~\"$namespace\",hcu_pod_name=~\"$pod\",container=~\"$container\"}",
+          "legendFormat": "",
+          "refId": "D",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "hide": false,
+          "exemplar": false
         }
       ],
-      "title": "HCU功率",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "keepLabels": [
+              "node",
+              "name",
+              "minor_number",
+              "vhcu_minor_number",
+              "vhcu_computer_unit",
+              "vhcu_memory_cap",
+              "hcu_pod_namespace",
+              "hcu_pod_name",
+              "container"
+            ],
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
             },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
+            "renameByName": {
+              "node": "节点",
+              "name": "型号",
+              "minor_number": "物理HCU",
+              "vhcu_minor_number": "vHCU",
+              "vhcu_computer_unit": "vHCU CU",
+              "vhcu_memory_cap": "vHCU显存上限",
+              "hcu_pod_namespace": "Namespace",
+              "hcu_pod_name": "Pod",
+              "container": "Container",
+              "vhcu_utilizationrate": "利用率",
+              "vhcu_usedmemory_percent": "显存%",
+              "vhcu_usedmemory_bytes": "显存占用",
+              "vhcu_temp": "温度"
             }
-          },
-          "links": [],
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "MiBs"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 41
-      },
-      "id": 16,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
+          }
         }
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "hcu_pciebw_mb{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",pcieBus_number=\"{{pcieBus_number}}\",namespace=\"{{hcu_pod_namespace}}\",pod=\"{{hcu_pod_name}}\",container=\"{{container}}\"",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "hcu_pciebw_mb{node=~\"$Node\", minor_number=~\"$HCU\",hcu_pod_namespace=\"\",hcu_pod_name=\"\",container=\"\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",pcieBus_number=\"{{pcieBus_number}}\"",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        }
-      ],
-      "title": "PCIe带宽",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "rotmhz"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 41
-      },
-      "id": 17,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "hcu_sclk{node=~\"$Node\", minor_number=~\"$HCU\", hcu_pod_namespace=~\"$Namespace\", hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",pcieBus_number=\"{{pcieBus_number}}\",namespace=\"{{hcu_pod_namespace}}\",pod=\"{{hcu_pod_name}}\",container=\"{{container}}\"",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "hcu_sclk{node=~\"$Node\", minor_number=~\"$HCU\",hcu_pod_namespace=\"\",hcu_pod_name=\"\",container=\"\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",pcieBus_number=\"{{pcieBus_number}}\"",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        }
-      ],
-      "title": "HCU频率",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 49
-      },
-      "id": 23,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "vhcu_utilizationrate{node=~\"$Node\",minor_number=~\"$HCU\",hcu_pod_namespace=~\"$Namespace\",hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",vhcu_id= \"{{vhcu_minor_number}}\",namespace=\"{{hcu_pod_namespace}}\",pod=\"{{hcu_pod_name}}\",container=\"{{container}}\"",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "vhcu_utilizationrate{node=~\"$Node\",minor_number=~\"$HCU\",hcu_pod_namespace=\"\",hcu_pod_name=\"\",container=\"\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",vhcu_id= \"{{vhcu_minor_number}}\"",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        }
-      ],
-      "title": "vHCU利用率",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 49
-      },
-      "id": 22,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "10.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "vhcu_usedmemory_bytes{node=~\"$Node\",minor_number=~\"$HCU\",hcu_pod_namespace=~\"$Namespace\",hcu_pod_name=~\"$Pod\",container=~\"$Container\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",vhcu_id= \"{{vhcu_minor_number}}\",namespace=\"{{hcu_pod_namespace}}\",pod=\"{{hcu_pod_name}}\",container=\"{{container}}\"",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "vhcu_usedmemory_bytes{node=~\"$Node\",minor_number=~\"$HCU\",hcu_pod_namespace=\"\",hcu_pod_name=\"\",container=\"\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "legendFormat": "node=\"{{node}}\",name=\"{{name}}\",hcu_id= \"{{minor_number}}\",vhcu_id= \"{{vhcu_minor_number}}\"",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        }
-      ],
-      "title": "vHCU显存占用量",
-      "type": "timeseries"
+      ]
     }
   ],
-  "refresh": "",
-  "schemaVersion": 38,
-  "style": "dark",
-  "tags": [],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "hygon",
+    "hcu",
+    "hcu-exporter",
+    "v3"
+  ],
   "templating": {
     "list": [
       {
-        "current": {},
+        "name": "node",
+        "label": "Node",
+        "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values(hcu_compute_unit_count,node)",
-        "hide": 0,
-        "includeAll": true,
-        "multi": false,
-        "name": "Node",
-        "options": [],
+        "definition": "label_values(hcu_utilizationrate,node)",
         "query": {
-          "query": "label_values(hcu_compute_unit_count,node)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+          "query": "label_values(hcu_utilizationrate,node)",
+          "refId": "var-node"
         },
-        "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {},
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
       },
       {
-        "current": {},
+        "name": "hcu_id",
+        "label": "HCU",
+        "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values(hcu_compute_unit_count,minor_number)",
-        "hide": 0,
-        "includeAll": true,
-        "multi": false,
-        "name": "HCU",
-        "options": [],
+        "definition": "label_values(hcu_utilizationrate{node=~\"$node\"},minor_number)",
         "query": {
-          "query": "label_values(hcu_compute_unit_count,minor_number)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+          "query": "label_values(hcu_utilizationrate{node=~\"$node\"},minor_number)",
+          "refId": "var-hcu_id"
         },
-        "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {},
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
       },
       {
-        "current": {},
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "query_result((hcu_utilizationrate or vhcu_utilizationrate))",
-        "hide": 0,
-        "includeAll": true,
-        "multi": false,
-        "name": "Namespace",
-        "options": [],
+        "definition": "query_result((hcu_utilizationrate{node=~\"$node\"} or vhcu_utilizationrate{node=~\"$node\"}))",
         "query": {
-          "query": "query_result((hcu_utilizationrate or vhcu_utilizationrate))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+          "query": "query_result((hcu_utilizationrate{node=~\"$node\"} or vhcu_utilizationrate{node=~\"$node\"}))",
+          "refId": "var-namespace"
         },
-        "refresh": 1,
         "regex": "/hcu_pod_namespace=\"([^\"]+)\"/",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {},
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
       },
       {
-        "current": {},
+        "name": "pod",
+        "label": "Pod",
+        "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "query_result((hcu_utilizationrate or vhcu_utilizationrate))",
-        "hide": 0,
-        "includeAll": true,
-        "multi": false,
-        "name": "Pod",
-        "options": [],
+        "definition": "query_result((hcu_utilizationrate{node=~\"$node\",hcu_pod_namespace=~\"$namespace\"} or vhcu_utilizationrate{node=~\"$node\",hcu_pod_namespace=~\"$namespace\"}))",
         "query": {
-          "query": "query_result((hcu_utilizationrate or vhcu_utilizationrate))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+          "query": "query_result((hcu_utilizationrate{node=~\"$node\",hcu_pod_namespace=~\"$namespace\"} or vhcu_utilizationrate{node=~\"$node\",hcu_pod_namespace=~\"$namespace\"}))",
+          "refId": "var-pod"
         },
-        "refresh": 1,
         "regex": "/hcu_pod_name=\"([^\"]+)\"/",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {},
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
       },
       {
-        "current": {},
+        "name": "container",
+        "label": "Container",
+        "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "query_result((hcu_utilizationrate or vhcu_utilizationrate))",
-        "hide": 0,
-        "includeAll": true,
-        "multi": false,
-        "name": "Container",
-        "options": [],
+        "definition": "query_result((hcu_utilizationrate{node=~\"$node\",hcu_pod_namespace=~\"$namespace\",hcu_pod_name=~\"$pod\"} or vhcu_utilizationrate{node=~\"$node\",hcu_pod_namespace=~\"$namespace\",hcu_pod_name=~\"$pod\"}))",
         "query": {
-          "query": "query_result((hcu_utilizationrate or vhcu_utilizationrate))",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+          "query": "query_result((hcu_utilizationrate{node=~\"$node\",hcu_pod_namespace=~\"$namespace\",hcu_pod_name=~\"$pod\"} or vhcu_utilizationrate{node=~\"$node\",hcu_pod_namespace=~\"$namespace\",hcu_pod_name=~\"$pod\"}))",
+          "refId": "var-container"
         },
-        "refresh": 1,
         "regex": "/container=\"([^\"]+)\"/",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {},
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
       }
     ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "",
-  "title": "HCU Cluster Monitor",
-  "uid": "bee0c0c4-374b-49f2-b27c-3590378c862b",
-  "version": 42,
+  "timezone": "browser",
+  "title": "HCU Cluster Monitor v3",
+  "uid": "hcu-cluster-monitor-v3",
+  "version": 1,
   "weekStart": ""
 }
