@@ -37,6 +37,9 @@ func runMetricsCollectLoop() {
 	maybeStartPodInformer(nodeName)
 
 	for {
+		// 采集前做一次三方对账，避免热插拔后指标基于过期 DCGM 状态
+		util.ReconcileDCGMDevices()
+
 		vdeviceInfos, err := dcgm.VDeviceInfos()
 		if err != nil {
 			glog.Errorf("Get vdevice error: %v ", err)
