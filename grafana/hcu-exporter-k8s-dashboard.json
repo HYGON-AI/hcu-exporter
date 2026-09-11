@@ -2412,7 +2412,7 @@
       "id": 28,
       "type": "table",
       "title": "HCU Kubernetes 使用详情",
-      "description": "替代旧版 DCU K8s 使用详情表，使用新版标签与指标。",
+      "description": "替代旧版 K8s 使用详情表，使用新版标签与指标。",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -2680,7 +2680,7 @@
       "id": 29,
       "type": "table",
       "title": "vHCU Kubernetes 使用详情",
-      "description": "vHCU 标签名已从旧版 vdcu_* 修正为 README 中定义的 vhcu_*。",
+      "description": "vHCU 标签名已从旧版修正为 vhcu_*。",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
