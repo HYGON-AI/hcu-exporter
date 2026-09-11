@@ -601,6 +601,9 @@ func start() {
 		}
 	}()
 
+	// RSMI / DMI / lspci 三方对账，不一致时 ShutDown + Init 重启 DCGM
+	util.StartDCGMDeviceReconcileLoop()
+
 	initMetrics(metricConfig)
 
 	// 这里用自定义注册表，可以使返回的数据比较简洁
