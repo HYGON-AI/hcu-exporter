@@ -104,7 +104,7 @@ docker run --name hcu-exporter- -d --privileged \
 
 其中，{relese_version}为对应组件版本号。
 
-容器运行成功后，可通过 http://localhost:16080/metrcis 获取HCU监控指标。
+容器运行成功后，可通过 http://localhost:16080/metrics 获取HCU监控指标。
 
 ### 3.2.3 Kubernetes环境
 
