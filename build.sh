@@ -10,7 +10,7 @@ export CGO_ENABLED=1
 go mod tidy
 
 BINARY=hcu-exporter
-IMAGE_TAG="${IMAGE_TAG:-v3.0.0}"
+IMAGE_TAG="${IMAGE_TAG:-v3.0.1}"
 IMAGE="harbor.sourcefind.cn:5443/hcu/admin/base/hcu-exporter:${IMAGE_TAG}"
 
 go build -ldflags "-X 'main.version=${IMAGE_TAG}'" -o "${BINARY}" ./cmd/hcu-exporter

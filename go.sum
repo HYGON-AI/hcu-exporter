@@ -1,5 +1,5 @@
-github.com/HYGON-AI/hcu-dcgm/v3 v3.0.0 h1:Wx8Do+LcrJcUak4NuiDEJUGjKEFKp5hXphcoLIJTLu4=
-github.com/HYGON-AI/hcu-dcgm/v3 v3.0.0/go.mod h1:jmcvulxkMznHsMwKiaHqFFqRNTklvHu4h1wcNiD4HMQ=
+github.com/HYGON-AI/hcu-dcgm/v3 v3.0.1 h1:x73CkkU6oemj/ypLr7ZVfb2cqWDiYTwJX9NxrZzq16A=
+github.com/HYGON-AI/hcu-dcgm/v3 v3.0.1/go.mod h1:jmcvulxkMznHsMwKiaHqFFqRNTklvHu4h1wcNiD4HMQ=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
