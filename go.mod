@@ -3,7 +3,7 @@ module github.com/HYGON-AI/hcu-exporter/v3
 go 1.25.0
 
 require (
-	github.com/HYGON-AI/hcu-dcgm/v3 v3.0.0
+	github.com/HYGON-AI/hcu-dcgm/v3 v3.0.1
 	github.com/deckarep/golang-set/v2 v2.8.0
 	github.com/golang/glog v1.2.5
 	github.com/prometheus/client_golang v1.19.1
