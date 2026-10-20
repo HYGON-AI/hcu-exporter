@@ -1,10 +1,10 @@
-## 3.1 概述
+## 1.1 概述
 
 HCU-Exporter提供 HCU/vHCU 设备的监控指标，支持 Prometheus 集成。通过 HCU-Exporter，用户可以实时监控 HCU/vHCU 的温度、功耗、显存使用率等关键指标，确保设备的健康运行。
 
-HCU-Exporter通过 HTTP 接口暴露HCU的监控指标，默认端口为16080，默认路径为/metrics，用户可通过 http://<host>:16080/metrics 访问指标。指标以 Prometheus 文本格式提供，便于Prometheus抓取和存储。HCU-Exporter暴露的指标涵盖HCU的多个方面，指标名称和指标含义如下：
+HCU-Exporter通过 HTTP 接口暴露HCU的监控指标，默认端口为16080，默认路径为/metrics，用户可通过 `http://hostname:16080/metrics` 访问指标。指标以 Prometheus 文本格式提供，便于Prometheus抓取和存储。HCU-Exporter暴露的指标涵盖HCU的多个方面，指标名称和指标含义如下：
 
-表 3.1 HCU-Exporter 监控指标
+表 1.1 HCU-Exporter 监控指标
 
 | 指标名称                   | 指标含义                                                     |
 | -------------------------- | ------------------------------------------------------------ |
@@ -43,7 +43,7 @@ HCU-Exporter通过 HTTP 接口暴露HCU的监控指标，默认端口为16080，
 
 HCU-Exporter 暴露的指标附带标签（Labels），用于区分不同的 HCU 实例、设备或其它上下文信息。以下是标签及其含义：
 
-表 3.2 HCU-Exporter 监控指标标签
+表 1.2 HCU-Exporter 监控指标标签
 
 | 标签               | 标签含义             |
 | ------------------ | -------------------- |
@@ -75,17 +75,17 @@ HCU-Exporter 暴露的指标附带标签（Labels），用于区分不同的 HCU
 | direction          | XHCL 带宽方向        |
 | health             | Hylink/XHCL          |
 
-## 3.2 安装部署
+## 1.2 安装部署
 
 本文档涉及的yaml文件可以从[社区资源中心](https://download.sourcefind.cn:65024/5/main/Kubernetes%E6%8F%92%E4%BB%B6)下载，镜像可以从[光源镜像仓库](https://developer.sourcefind.cn/servicelist)直接拉取。
 
-### 3.2.1 宿主机环境
+### 1.2.1 宿主机环境
 
 用户可以通过一键安装部署方式在物理机安装部署HCU-Exporter，安装过程自动完成解压和配置，安装HCU-Exporter需要保证HCU驱动已经安装。
 
 从社区下载hcu-exporter.run安装包后，运行bash hcu-exporter.run即可完成安装部署，HCU-Exporter将安装在 /opt/hcu-exporter 目录。安装完成后，用户可通过/opt/hcu-exporter目录hcu-exporter命令启动HCU-Exporter，启动参数可以通过-h参数查看。
 
-### 3.2.2 容器环境
+### 1.2.2 容器环境
 
 以Docker为例，容器环境部署命令如下：
 
@@ -104,9 +104,9 @@ docker run --name hcu-exporter- -d --privileged \
 
 其中，{relese_version}为对应组件版本号。
 
-容器运行成功后，可通过 http://localhost:16080/metrics 获取HCU监控指标。
+容器运行成功后，可通过 `http://localhost:16080/metrics` 获取HCU监控指标。
 
-### 3.2.3 Kubernetes环境
+### 1.2.3 Kubernetes环境
 
 k8s集群以DaemonSet形式部署HCU-Exporter，DaemonSet部署命令如下：
 
@@ -114,7 +114,7 @@ k8s集群以DaemonSet形式部署HCU-Exporter，DaemonSet部署命令如下：
 kubectl create -f hcu-exporter.yaml
 ```
 
-若需要自定义 hcu-exporter 端口，可以修改 hcu-exporter.yaml 文件中 contanierPort，Prometheus.io/port 和 service port。
+若需要自定义 hcu-exporter 端口，可以修改 hcu-exporter.yaml 文件中 `contanierPort`、`Prometheus.io/port` 和 `service port`。
 
 ```
  template:
@@ -132,7 +132,7 @@ kubectl create -f hcu-exporter.yaml
     nodeSelector:
       hygon.com/hcu: "true"
     containers:
-      - image: "harbor.sourcefind.cn:5443/hcu/admin/base/hcu-exporter:v3.0.0"
+      - image: "harbor.sourcefind.cn:5443/hcu/admin/base/hcu-exporter:v3.0.1"
         securityContext:
           privileged: true
         name: "hcu-exporter"
@@ -143,7 +143,7 @@ kubectl create -f hcu-exporter.yaml
             hostPort: *portInt
 ```
 
-HCU-Exporter默认收集3.1所述全部监控指标，用户可以通过yaml环境变量" ENABLE_METRICS "指定需要采集的监控指标，如下yaml示例仅采集HCU温度与功率指标(指标名称参照3.1节，指标之间用英文逗号进行分割)。此外，指标采集间隔可以通过yaml中"PULSE"环境变量设置，以秒为单位；日志输出级别、等级、是否输出可以通过yaml中"LOG"开头的环境变换进行设置。
+HCU-Exporter默认收集3.1所述全部监控指标，用户可以通过yaml环境变量" ENABLE_METRICS "指定需要采集的监控指标，如下yaml示例仅采集HCU温度与功率指标(指标名称参照1.1节，指标之间用英文逗号进行分割)。此外，指标采集间隔可以通过yaml中"PULSE"环境变量设置，以秒为单位；日志输出级别、等级、是否输出可以通过yaml中"LOG"开头的环境变换进行设置。
 
 ```
         env:
@@ -249,7 +249,7 @@ hcu_process_vram_usage_rate{device_id="T8R1380013061601",minor_number="0",name="
 ...
 ```
 
-## 3.3 集成监控
+## 1.3 集成监控
 
 若k8s集群已经部署Prometheus，HCU-Exporter采集的指标将自动抓取到Prometheus中，用户可以通过Prometheus查询验证指标的采集情况。如下为HCU温度指标hcu_temp通过Prometheus的采集存储详情：
 

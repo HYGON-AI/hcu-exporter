@@ -14,11 +14,6 @@ rules:
   resources:
   - pods
   verbs:
-  - '*'
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - pods
-  verbs:
-  - '*'
+  - list
+  - watch
 {{- end }}
