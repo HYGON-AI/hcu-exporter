@@ -37,7 +37,7 @@ spec:
       nodeSelector:
         hygon.com/hcu: "true"
       containers:
-        - image: "harbor.sourcefind.cn:5443/hcu/admin/base/hcu-exporter:v3.0.0"
+        - image: "ghcr.io/hygon-ai/hcu-exporter:v3.0.1"
           securityContext:
             privileged: true
           env:
@@ -161,13 +161,8 @@ rules:
     resources:
       - pods
     verbs:
-      - "*"
-  - apiGroups:
-      - storage.k8s.io
-    resources:
-      - pods
-    verbs:
-      - '*'
+      - list
+      - watch
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
