@@ -50,7 +50,7 @@ HCU-Exporter 是面向海光 HCU 的 Prometheus 指标导出器。它通过 [hcu
 Kubernetes 环境（connect-k8s=true 且 Kubelet Socket 可用时）额外依赖：
   · Kubelet Pod Resources Socket：/var/lib/kubelet/pod-resources/kubelet.sock
   · Kubernetes API：Pod Informer，监听本节点 HCU Pod 变化并刷新设备关联信息
-  · /etc/vdev/dynamic：动态 vHCU（hcunum）场景下的设备-Pod 映射
+  · /etc/vdev/dynamic：动态 vHCU（`<prefix>num`，默认 hcunum）场景下的设备-Pod 映射
 ```
 
 程序启动后主要执行以下流程：
@@ -235,6 +235,7 @@ docker build -t hcu-exporter:latest .
 | `--sample-duration-ms` | `SAMPLE_DURATION_MS`  | `1000`               | 采样类利用率指标的采样窗口时长（毫秒）；仅 `high` 档中相关指标生效     |
 | `--kube-config`        | `KUBE_CONFIG`         | `/root/.kube/config` | Kubeconfig 路径；不存在时使用 InCluster 配置                         |
 | `--connect-k8s`        | `CONNECT_K8S`         | `true`               | 是否连接 K8s 采集 Pod 关联信息                                       |
+| `--resource-prefix`    | `RESOURCE_PREFIX`     | `hcu`                | 产品族资源名前缀，须与 device-plugin 一致：`hcu` / `*cu` / `dcu`     |
 | `--hylink-detail`      | `HYLINK_DETAIL`       | `false`              | 是否输出 Hylink 每条链路的明细指标                                   |
 | `--ips`                | `ALLOWED_IPS`         | 空（不限制）         | 允许访问 `/metrics` 的 IP 或 CIDR，逗号分隔                          |
 | `--stderrthreshold`    | `LOG_THRESHOLD`       | `INFO`               | 日志级别：`INFO` / `WARNING` / `ERROR`                               |
@@ -572,11 +573,11 @@ hcu_process_vram_usage_rate{device_id="T8R1380013061601",minor_number="0",name="
 
 ## Kubernetes Pod 关联
 
-当 `--connect-k8s=true`（默认）且 Kubelet Pod Resources Socket 存在时，Exporter 会将 HCU 指标与 Pod / 容器关联，填充 `hcu_pod_namespace`、`hcu_pod_name`、`container` 标签。
+当 `--connect-k8s=true`（默认）且 Kubelet Pod Resources Socket 存在时，Exporter 会将 HCU 指标与 Pod / 容器关联，填充 `hcu_pod_namespace`、`hcu_pod_name`、`container` 标签。关联范围包含普通容器与 Init 容器（与 device-plugin 对 `initContainers` 挂载 HCU 的行为一致）；`container` 标签为对应容器名。
 
 ### 工作机制
 
-1. **Pod Informer**：监听本节点上申请了 `hygon.com/*` 资源的 Pod 增删改事件
+1. **Pod Informer**：监听本节点上申请了 `hygon.com/*` 资源的 Pod 增删改事件（含仅 Init 容器申请 HCU 的 Pod）
 2. **Pod Resources API**：通过 Unix Socket 查询设备 UUID 与 Pod / 容器的对应关系
 3. **按需刷新**：仅在相关 Pod 发生变化时重新拉取设备映射，避免无效轮询
 
@@ -586,11 +587,11 @@ Exporter 根据 Pod 申请的资源名称，采用不同的关联策略：
 
 | 场景                | 资源名前缀示例                                               | 关联方式                                                 |
 | ------------------- | ------------------------------------------------------------ | -------------------------------------------------------- |
-| 整卡 HCU            | `hygon.com/hcu`、`hygon.com/<型号>`、`hygon.com/<型号>_<显存>_<CU>` | 通过 PCIe Bus 号匹配 Pod Resources 中的设备 ID           |
-| vHCU 共享           | `hygon.com/hcu-share`、`hygon.com/<前缀>-share-<CU>-<显存>`  | 通过 vHCU minor number 匹配                              |
-| 动态 vHCU（hcunum） | `hygon.com/hcunum`、`hygon.com/<型号>_hcunum` 等             | 结合 `/etc/vdev/dynamic` 目录下的配置文件与 Pod UID 匹配 |
+| 整卡                | `hygon.com/<prefix>`、`hygon.com/<型号>`、`hygon.com/<型号>_<显存>_<CU>` | 通过 PCIe Bus 号匹配 Pod Resources 中的设备 ID |
+| vHCU 共享           | `hygon.com/<prefix>-share`、`hygon.com/<前缀>-share-<CU>-<显存>` | 通过 vHCU minor number 匹配 |
+| 动态 vHCU（*num）   | `hygon.com/<prefix>num`、`hygon.com/<型号>_<prefix>num` 等 | 结合 `/etc/vdev/dynamic` 与 Pod UID / 容器名匹配 |
 
-资源名列表会根据当前节点上检测到的 HCU 型号动态生成（见 `pkg/util/util.go` 中 `GetResourceNameList`）。
+其中 `<prefix>` 由 `--resource-prefix` / `RESOURCE_PREFIX` 决定（默认 `hcu` → `hygon.com/hcu`、`hygon.com/hcunum`；设为 `dcu` 则为 `hygon.com/dcu`、`hygon.com/dcunum`）。须与 device-plugin 保持一致。型号变体仍按节点上检测到的设备动态生成（`GetResourceNameList`）。
 
 ### 部署注意事项
 
@@ -667,7 +668,7 @@ hcu-exporter/
 
 **Q: 指标中没有 Pod 信息？**
 
-确认 `--connect-k8s=true`（默认），Kubelet Pod Resources Socket 存在（`/var/lib/kubelet/pod-resources/kubelet.sock`），Pod 已申请 `hygon.com/*` 资源，且 RBAC 与 `/etc/vdev` 挂载配置正确。
+确认 `--connect-k8s=true`（默认），Kubelet Pod Resources Socket 存在（`/var/lib/kubelet/pod-resources/kubelet.sock`），Pod 已申请 `hygon.com/*` 资源，RBAC 与 `/etc/vdev` 挂载配置正确，且 `--resource-prefix` / `RESOURCE_PREFIX` 与节点上 device-plugin 一致（例如均为 `dcu` 或均为 `*cu`）。
 
 **Q: 进程自动退出并提示 "Metrics Collect Stuck"？**
 

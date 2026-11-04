@@ -8,7 +8,8 @@
 # 5). 可选：配置 SAMPLE_DURATION_MS 采样类利用率窗口毫秒数（默认 1000，仅 high 档相关指标）
 # 6). 可选：配置 ENABLE_METRICS 精确指定指标（非空时覆盖 METRICS_LEVEL）
 # 7). 可选：配置 METRICS_DEFINE / LABEL_DEFINE 自定义导出指标名与 Label 名（JSON 字符串，留空表示不自定义）
-# 8). kubectl apply -f hcu-exporter.yaml
+# 8). 可选：配置 RESOURCE_PREFIX 与 device-plugin 保持一致（hcu | *cu | dcu，默认 hcu）
+# 9). kubectl apply -f hcu-exporter.yaml
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -76,6 +77,9 @@ spec:
             # 是否连接 K8S 采集 Pod 信息；设置为 "false" 可跳过 K8S 连接（裸机部署场景）
             - name: "CONNECT_K8S"
               value: "true"
+            # 与 k8s-hcu-device-plugin 的 RESOURCE_PREFIX 保持一致（hcu | *cu ）
+            - name: "RESOURCE_PREFIX"
+              value: "hcu"
             # 自定义导出指标名（内部指标名 -> 展示名），JSON 字符串；留空表示使用默认名称
             # 示例：将 hcu_ce_count 导出为 ce_count，hcu_compute_unit_count 导出为 compute_unit_count
             # - name: "METRICS_DEFINE"

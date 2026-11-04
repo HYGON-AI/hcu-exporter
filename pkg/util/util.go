@@ -16,7 +16,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-const RESOURCE_PREFIX = "hygon.com"
+// RESOURCE_PREFIX is kept as an alias of ResourceNamespace for older call sites.
+// Prefer ResourceNamespace / ResourcePrefix() for new code.
+const RESOURCE_PREFIX = ResourceNamespace
 
 func ParseStringToArray(input string, comma string) []string {
 	parts := strings.Split(input, comma)
@@ -60,10 +62,27 @@ func EnsureDirExists(path string) error {
 	return nil
 }
 
+// AllPodContainers returns InitContainers followed by Containers, matching
+// device-plugin allocation so exporter can associate HCU metrics with init containers.
+func AllPodContainers(pod *v1.Pod) []v1.Container {
+	if pod == nil {
+		return nil
+	}
+	nInit := len(pod.Spec.InitContainers)
+	nApp := len(pod.Spec.Containers)
+	if nInit+nApp == 0 {
+		return nil
+	}
+	all := make([]v1.Container, 0, nInit+nApp)
+	all = append(all, pod.Spec.InitContainers...)
+	all = append(all, pod.Spec.Containers...)
+	return all
+}
+
 func RequestsHCU(pod *v1.Pod) bool {
-	for _, container := range pod.Spec.Containers {
+	for _, container := range AllPodContainers(pod) {
 		for resourceName, quantity := range container.Resources.Limits {
-			if (strings.Contains(string(resourceName), RESOURCE_PREFIX)) && quantity.Value() > 0 {
+			if strings.Contains(string(resourceName), ResourceNamespace) && quantity.Value() > 0 {
 				return true
 			}
 		}
@@ -73,9 +92,9 @@ func RequestsHCU(pod *v1.Pod) bool {
 
 func GetHCUResourceNames(pod *v1.Pod) mapset.Set[string] {
 	resourceNames := mapset.NewSet[string]()
-	for _, container := range pod.Spec.Containers {
+	for _, container := range AllPodContainers(pod) {
 		for resourceName, quantity := range container.Resources.Limits {
-			if (strings.Contains(string(resourceName), RESOURCE_PREFIX)) && quantity.Value() > 0 {
+			if strings.Contains(string(resourceName), ResourceNamespace) && quantity.Value() > 0 {
 				resourceNames.Add(string(resourceName))
 			}
 		}
@@ -83,6 +102,8 @@ func GetHCUResourceNames(pod *v1.Pod) mapset.Set[string] {
 	return resourceNames
 }
 
+// GetResourceNameList returns K8s resource names that match device-plugin
+// registration for the current ResourcePrefix (hcu / *cu / …).
 func GetResourceNameList(vHCUFlag bool) []string {
 	info, err := dcgm.GetDeviceInfo(0)
 	if err != nil {
@@ -90,12 +111,22 @@ func GetResourceNameList(vHCUFlag bool) []string {
 	}
 	cu_string := strconv.Itoa(info.ComputeUnitCount) + "CU"
 	mem_string := strconv.Itoa(int(math.Round(float64(info.GlobalMemSize)/(1024*1024*1024)))) + "G"
+	modelSized := strings.ReplaceAll(info.Name, "_", "-") + "_" + mem_string + "_" + cu_string
 
 	if vHCUFlag {
-		return []string{RESOURCE_PREFIX + "/hcunum", RESOURCE_PREFIX + "/" + info.Name + "_hcunum", RESOURCE_PREFIX + "/" + strings.ReplaceAll(info.Name, "_", "-") + "_" + mem_string + "_" + cu_string + "_hcunum"}
+		num := ResourceNameNum()
+		return []string{
+			DynamicNumResourceName(),
+			ResourceNamespace + "/" + info.Name + "_" + num,
+			ResourceNamespace + "/" + modelSized + "_" + num,
+		}
 	}
 
-	return []string{RESOURCE_PREFIX + "/hcu", RESOURCE_PREFIX + "/" + info.Name, RESOURCE_PREFIX + "/" + strings.ReplaceAll(info.Name, "_", "-") + "_" + mem_string + "_" + cu_string}
+	return []string{
+		WholeCardResourceName(),
+		ResourceNamespace + "/" + info.Name,
+		ResourceNamespace + "/" + modelSized,
+	}
 }
 
 // Metrics collection cost levels. Tiers are cumulative: medium ⊇ low, high ⊇ medium.
@@ -232,6 +263,8 @@ func ResolveEnabledMetrics(metricsLevel, enableMetricsStr string) ([]string, err
 	return MetricsByLevel(metricsLevel)
 }
 
+// GetResourceNamePrefixList returns share-resource name prefixes used by
+// device-plugin vhcu registration (family / model / model_mem_CU).
 func GetResourceNamePrefixList() []string {
 	info, err := dcgm.GetDeviceInfo(0)
 	if err != nil {
@@ -240,5 +273,9 @@ func GetResourceNamePrefixList() []string {
 	cu_string := strconv.Itoa(info.ComputeUnitCount) + "CU"
 	mem_string := strconv.Itoa(int(math.Round(float64(info.GlobalMemSize)/(1024*1024*1024)))) + "G"
 
-	return []string{"hcu", info.Name, strings.ReplaceAll(info.Name, "_", "-") + "_" + mem_string + "_" + cu_string}
+	return []string{
+		ResourcePrefix(),
+		info.Name,
+		strings.ReplaceAll(info.Name, "_", "-") + "_" + mem_string + "_" + cu_string,
+	}
 }

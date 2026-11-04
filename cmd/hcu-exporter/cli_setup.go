@@ -20,6 +20,13 @@ func beforeCLI(c *cli.Context) error {
 	_ = flag.Set("stderrthreshold", c.String("stderrthreshold"))
 	_ = flag.Set("alsologtostderr", c.String("alsologtostderr"))
 
+	if err := util.InitResourcePrefix(resourcePrefixFlag); err != nil {
+		return err
+	}
+	initResourceNameLists()
+	glog.Infof("RESOURCE_PREFIX=%s (whole=%s dynamic=%s share=%s)",
+		util.ResourcePrefix(), util.WholeCardResourceName(), util.DynamicNumResourceName(), util.ShareResourceBaseName())
+
 	var err error
 	metricConfig, err = util.NewMetricConfig(c.String("metrics-define"), c.String("label-define"))
 	if err != nil {
@@ -32,6 +39,13 @@ func beforeCLI(c *cli.Context) error {
 	glog.Infof("Enabled %d metrics (metrics-level=%q, enable-metrics override=%v)",
 		len(metricsList), c.String("metrics-level"), strings.TrimSpace(c.String("enable-metrics")) != "")
 	return nil
+}
+
+// initResourceNameLists rebuilds Pod Resources whitelist from the active RESOURCE_PREFIX.
+func initResourceNameLists() {
+	resources = util.GetResourceNameList(false)
+	vhcuDynamicResource = util.GetResourceNameList(true)
+	vhcuShareResource = []string{util.ShareResourceBaseName()}
 }
 
 func exporterFlags() []cli.Flag {
@@ -132,6 +146,14 @@ func exporterFlags() []cli.Flag {
 			Value:       true,
 			Destination: &connectK8sFlag,
 			EnvVars:     []string{"CONNECT_K8S"},
+		},
+		&cli.StringFlag{
+			Name: "resource-prefix",
+			Usage: "product-family prefix for K8s resource names; must match device-plugin RESOURCE_PREFIX:\n" +
+				"\t\t[hcu | *cu ], default hcu",
+			Value:       util.DefaultResourcePrefix,
+			Destination: &resourcePrefixFlag,
+			EnvVars:     []string{"RESOURCE_PREFIX"},
 		},
 	}
 }

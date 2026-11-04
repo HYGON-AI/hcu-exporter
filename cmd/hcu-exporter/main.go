@@ -44,12 +44,12 @@ var (
 
 	timeout = 10 * time.Second
 
-	resources           = util.GetResourceNameList(false)
-	vhcuDynamicResource = util.GetResourceNameList(true)
+	// Filled by initResourceNameLists after RESOURCE_PREFIX is applied.
+	resources           []string
+	vhcuDynamicResource []string
+	vhcuShareResource   []string
 
-	vhcuShareResource = []string{
-		"hygon.com/hcu-share",
-	}
+	resourcePrefixFlag string
 
 	maxSize = 1024 * 1024 * 16 // 16 Mb
 
@@ -604,6 +604,9 @@ func start() {
 	// RSMI / DMI / lspci 三方对账，不一致时 ShutDown + Init 重启 DCGM
 	util.StartDCGMDeviceReconcileLoop()
 
+	// Rebuild after DCGM init so model-scoped resource name variants are accurate.
+	initResourceNameLists()
+
 	initMetrics(metricConfig)
 
 	// 这里用自定义注册表，可以使返回的数据比较简洁
@@ -818,21 +821,21 @@ func informerPodHandler(nodeName string, clientset *kubernetes.Clientset) {
 func updatePodInfoMap(pod *v1.Pod) {
 	resourceNames := util.GetHCUResourceNames(pod)
 
-	// 获取pod resources指标数据(hcu)
+	// 整卡资源（hygon.com/<prefix> 等）
 	if util.HasIntersection(resourceNames, util.StringSliceToSet(resources)) {
 		podresource := podresources.NewPodResourcesClient(timeout, socket, resources, maxSize)
 		podInfoMap, _ = podresource.GetDeviceToPodInfo(pod.Spec.NodeName)
 		glog.V(5).Infof(" hcuPodInfoMap: %v \n", podInfoMap)
 	}
 
-	// 获取pod resources指标数据(hcu-share)
+	// 共享 vHCU（hygon.com/<prefix>-share…）
 	if util.HasIntersection(resourceNames, util.StringSliceToSet(vhcuShareResource)) {
 		podHCUShareResource := podresources.NewPodResourcesClient(timeout, socket, vhcuShareResource, maxSize)
 		podHCUShareInfoMap, _ = podHCUShareResource.GetDeviceToPodInfo(pod.Spec.NodeName)
 		glog.V(5).Infof(" podHCUShareInfoMap: %v \n", podHCUShareInfoMap)
 	}
 
-	// 获取pod resources指标数据(hcunum)
+	// 动态 vHCU（hygon.com/<prefix>num…）
 	if util.HasIntersection(resourceNames, util.StringSliceToSet(vhcuDynamicResource)) {
 		podHCUHAMiResource := podresources.NewPodResourcesClient(timeout, socket, vhcuDynamicResource, maxSize)
 		podHCUHAMiInfoMap, _ := podHCUHAMiResource.GetDeviceToPodInfo(pod.Spec.NodeName)

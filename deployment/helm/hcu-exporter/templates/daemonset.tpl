@@ -52,6 +52,8 @@ spec:
           value: {{ quote .Values.hcuExporter.hcuExporter.env.allowedIPs }}
         - name: CONNECT_K8S
           value: {{ quote .Values.hcuExporter.hcuExporter.env.connectK8s }}
+        - name: RESOURCE_PREFIX
+          value: {{ quote .Values.hcuExporter.hcuExporter.env.resourcePrefix }}
         - name: KUBERNETES_CLUSTER_DOMAIN
           value: {{ quote .Values.kubernetesClusterDomain }}
         image: {{ .Values.hcuExporter.hcuExporter.image.repository }}:{{ .Values.hcuExporter.hcuExporter.image.tag

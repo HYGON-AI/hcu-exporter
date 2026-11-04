@@ -52,7 +52,7 @@ HCU-Exporter 暴露的指标附带标签（Labels），用于区分不同的 HCU
 | pcieBus_number     | HCU PCIe总线号       |
 | name               | HCU名称              |
 | node               | HCU节点名称          |
-| container          | HCU设备调用容器      |
+| container          | HCU 设备调用容器（含 Init 容器名） |
 | hcu_pod_name       | HCU设备调用Pod       |
 | hcu_pod_namespace  | HCU设备调用namespace |
 | block_type         | HCU ce/ue错误类型    |
@@ -182,6 +182,9 @@ HCU-Exporter默认收集3.1所述全部监控指标，用户可以通过yaml环�
           # 是否连接 K8S 采集 Pod 信息；设置为 "false" 可跳过 K8S 连接（裸机部署场景）
           - name: "CONNECT_K8S"
             value: "true"
+          # 与 device-plugin 的 RESOURCE_PREFIX 保持一致（hcu | *cu ）
+          - name: "RESOURCE_PREFIX"
+            value: "hcu"
           # 自定义导出指标名（内部指标名 -> 展示名），JSON 字符串；留空表示使用默认名称
           # 示例：将 hcu_ce_count 导出为 ce_count，hcu_compute_unit_count 导出为 compute_unit_count
           # - name: "METRICS_DEFINE"

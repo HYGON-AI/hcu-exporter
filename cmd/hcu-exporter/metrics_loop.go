@@ -107,7 +107,7 @@ func maybeStartPodInformer(nodeName string) {
 
 func buildVHCUInfoMap(vdeviceInfos []dcgm.VDeviceInfo) map[string]dcgm.VDeviceInfo {
 	vhcuInfoMap := make(map[string]dcgm.VDeviceInfo)
-	vhcuShareResource = []string{"hygon.com/hcu-share"}
+	vhcuShareResource = []string{util.ShareResourceBaseName()}
 	for _, vdeviceInfo := range vdeviceInfos {
 		vhcuInfoMap[strconv.Itoa(vdeviceInfo.VdvInd)] = vdeviceInfo
 		cuString := strconv.Itoa(vdeviceInfo.VComputeUnitCount) + "c"
@@ -115,7 +115,8 @@ func buildVHCUInfoMap(vdeviceInfos []dcgm.VDeviceInfo) map[string]dcgm.VDeviceIn
 		prefixList := util.GetResourceNamePrefixList()
 		if connectK8sFlag && util.FileExists(socket) {
 			for _, prefix := range prefixList {
-				vhcuShareResource = append(vhcuShareResource, "hygon.com/"+prefix+"-share-"+cuString+"-"+memString)
+				vhcuShareResource = append(vhcuShareResource,
+					util.ResourceNamespace+"/"+prefix+"-share-"+cuString+"-"+memString)
 			}
 		}
 	}
