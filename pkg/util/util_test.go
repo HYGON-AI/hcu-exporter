@@ -3,7 +3,12 @@
 
 package util
 
-import "testing"
+import (
+	"testing"
+
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+)
 
 func TestResolveEnableMetrics(t *testing.T) {
 	got := ResolveEnableMetrics("")
@@ -121,4 +126,89 @@ func containsMetric(list []string, name string) bool {
 		}
 	}
 	return false
+}
+
+func TestAllPodContainers(t *testing.T) {
+	pod := &v1.Pod{
+		Spec: v1.PodSpec{
+			InitContainers: []v1.Container{{Name: "init"}},
+			Containers:     []v1.Container{{Name: "app"}},
+		},
+	}
+	got := AllPodContainers(pod)
+	if len(got) != 2 || got[0].Name != "init" || got[1].Name != "app" {
+		t.Fatalf("AllPodContainers: got %#v", got)
+	}
+	if AllPodContainers(nil) != nil {
+		t.Fatal("AllPodContainers(nil) should be nil")
+	}
+}
+
+func TestRequestsHCUIncludesInitContainers(t *testing.T) {
+	qty := resource.MustParse("1")
+	initOnly := &v1.Pod{
+		Spec: v1.PodSpec{
+			InitContainers: []v1.Container{{
+				Name: "init-hcu",
+				Resources: v1.ResourceRequirements{
+					Limits: v1.ResourceList{
+						v1.ResourceName(WholeCardResourceName()): qty,
+					},
+				},
+			}},
+			Containers: []v1.Container{{Name: "app"}},
+		},
+	}
+	if !RequestsHCU(initOnly) {
+		t.Fatal("RequestsHCU should be true when only init container requests HCU")
+	}
+
+	appOnly := &v1.Pod{
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{{
+				Name: "app",
+				Resources: v1.ResourceRequirements{
+					Limits: v1.ResourceList{
+						v1.ResourceName(WholeCardResourceName()): qty,
+					},
+				},
+			}},
+		},
+	}
+	if !RequestsHCU(appOnly) {
+		t.Fatal("RequestsHCU should be true when app container requests HCU")
+	}
+
+	none := &v1.Pod{Spec: v1.PodSpec{Containers: []v1.Container{{Name: "app"}}}}
+	if RequestsHCU(none) {
+		t.Fatal("RequestsHCU should be false when no container requests HCU")
+	}
+}
+
+func TestGetHCUResourceNamesIncludesInitContainers(t *testing.T) {
+	qty := resource.MustParse("1")
+	pod := &v1.Pod{
+		Spec: v1.PodSpec{
+			InitContainers: []v1.Container{{
+				Name: "init-hcu",
+				Resources: v1.ResourceRequirements{
+					Limits: v1.ResourceList{
+						v1.ResourceName(WholeCardResourceName()): qty,
+					},
+				},
+			}},
+			Containers: []v1.Container{{
+				Name: "app",
+				Resources: v1.ResourceRequirements{
+					Limits: v1.ResourceList{
+						v1.ResourceName(DynamicNumResourceName()): qty,
+					},
+				},
+			}},
+		},
+	}
+	names := GetHCUResourceNames(pod)
+	if !names.Contains(WholeCardResourceName()) || !names.Contains(DynamicNumResourceName()) {
+		t.Fatalf("GetHCUResourceNames missing init/app resources: %v", names.ToSlice())
+	}
 }

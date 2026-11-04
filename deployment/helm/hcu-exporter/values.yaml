@@ -21,9 +21,11 @@ hcuExporter:
       allowedIPs: ""
       # 是否连接 K8S 采集 Pod 信息；设置为 "false" 可跳过 K8S 连接（裸机部署场景）
       connectK8s: "true"
+      # 与 k8s-hcu-device-plugin 的 RESOURCE_PREFIX 保持一致（hcu | *cu ）
+      resourcePrefix: "hcu"
     image:
       repository: harbor.sourcefind.cn:5443/hcu/admin/base/hcu-exporter
-      tag: v2.3.0
+      tag: v3.0.1
     imagePullPolicy: IfNotPresent
   nodeSelector:
     hygon.com/hcu: "true"

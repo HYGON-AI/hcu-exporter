@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	VIRTUAL_HCU_CONF_DIR          = "/etc/vdev"
-	SHARE_HCU_RESOURCE_DIR_PREFIX = "/var/lib/kubelet/device-plugins/hygon.com_hcu-share-"
+	VIRTUAL_HCU_CONF_DIR = "/etc/vdev"
 )
 
 type VitualDeviceInfo struct {
@@ -50,48 +49,88 @@ type VitualDeviceInfo struct {
 	UtilizationRate int
 }
 
+// parseDynamicMarkFileName parses device-plugin mark files named
+// "{podUID}_{containerName}_{deviceIdx}_{vDeviceIdx}".
+// Pod UIDs use hyphens (no underscores); container names may contain underscores,
+// so device indices are taken from the rightmost two underscore-separated fields.
+func parseDynamicMarkFileName(name string) (uid, container string, didx, vdidx int, ok bool) {
+	parts := strings.Split(name, "_")
+	if len(parts) < 4 {
+		return "", "", 0, 0, false
+	}
+	vdidx, err := strconv.Atoi(parts[len(parts)-1])
+	if err != nil {
+		return "", "", 0, 0, false
+	}
+	didx, err = strconv.Atoi(parts[len(parts)-2])
+	if err != nil {
+		return "", "", 0, 0, false
+	}
+	uid = parts[0]
+	container = strings.Join(parts[1:len(parts)-2], "_")
+	if uid == "" || container == "" {
+		return "", "", 0, 0, false
+	}
+	return uid, container, didx, vdidx, true
+}
+
+// podInfoForMark resolves Pod/Namespace from any Pod Resources entry with the
+// same Pod UID, then sets Container from the mark file.
+//
+// Init and app containers on the same physical HCU often share one device UUID
+// in the Pod Resources API, so the UUID→PodInfo map keeps only the last
+// container. Matching by UID + mark-file container name restores per-vHCU labels.
+func podInfoForMark(uid, container string, podHCUHAMiInfoMap map[string]PodInfo) (PodInfo, bool) {
+	for _, val := range podHCUHAMiInfoMap {
+		if val.UID != uid {
+			continue
+		}
+		info := val
+		info.Container = container
+		return info, true
+	}
+	return PodInfo{}, false
+}
+
 func GetVHCUPodInfo(podHCUHAMiInfoMap map[string]PodInfo) (map[string]PodInfo, map[string]PodInfo, error) {
+	return getVHCUPodInfoFromDir(VIRTUAL_HCU_CONF_DIR+"/dynamic", podHCUHAMiInfoMap)
+}
+
+func getVHCUPodInfoFromDir(dir string, podHCUHAMiInfoMap map[string]PodInfo) (map[string]PodInfo, map[string]PodInfo, error) {
 	hcuInfoMap := make(map[string]PodInfo)
 	vhcuInfoMap := make(map[string]PodInfo)
 
-	err := filepath.Walk(VIRTUAL_HCU_CONF_DIR+"/dynamic", func(path string, info os.FileInfo, err error) error {
-		found := false
-		podInfo := PodInfo{}
-
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-
-		if strings.Contains(info.Name(), "_") {
-			for _, val := range podHCUHAMiInfoMap {
-				tmpstr := strings.Split(info.Name(), "_")
-				containerName := tmpstr[0] + "_" + tmpstr[1]
-				if containerName == val.UID+"_"+val.Container {
-					found = true
-					podInfo = val
-					break
-				}
-			}
+		if info.IsDir() {
+			return nil
 		}
 
-		if found {
-			var didx, vdidx int
-			tmpstr := strings.Split(info.Name(), "_")
-			didx, _ = strconv.Atoi(tmpstr[2])
-			vdidx, _ = strconv.Atoi(tmpstr[3])
-			if vdidx > -1 {
-				vhcuInfoMap[tmpstr[3]] = podInfo
-			} else {
-				bus, _ := dcgm.GetBus(didx)
-				hcuInfoMap[bus] = podInfo
-			}
+		uid, container, didx, vdidx, ok := parseDynamicMarkFileName(info.Name())
+		if !ok {
+			return nil
+		}
+		podInfo, found := podInfoForMark(uid, container, podHCUHAMiInfoMap)
+		if !found {
+			return nil
 		}
 
+		if vdidx > -1 {
+			vhcuInfoMap[strconv.Itoa(vdidx)] = podInfo
+		} else {
+			bus, busErr := dcgm.GetBus(didx)
+			if busErr != nil {
+				return nil
+			}
+			hcuInfoMap[bus] = podInfo
+		}
 		return nil
 	})
 
 	if err != nil {
-		return nil, nil, fmt.Errorf("error walking directory %s: %w", VIRTUAL_HCU_CONF_DIR+"/dynamic", err)
+		return nil, nil, fmt.Errorf("error walking directory %s: %w", dir, err)
 	}
 
 	return vhcuInfoMap, hcuInfoMap, nil
