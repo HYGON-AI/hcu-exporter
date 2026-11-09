@@ -176,6 +176,30 @@ helm install hcu-exporter ./deployment/helm/hcu-exporter
 
 Helm 模板在 `connectK8s=true` 时自动挂载 Kubelet 目录并创建 Pod 读取 RBAC；设为 `false` 时跳过 K8s 相关配置，适用于特殊裸机场景。
 
+#### 节点标签前缀必须与 k8s-hcu-label-node 的 LABEL_PREFIX 一致
+
+exporter 的 `nodeSelector` 默认匹配 `hygon.com/hcu: "true"`，这个键来自 [k8s-hcu-label-node](../k8s-hcu-label-node) 的默认 `LABEL_PREFIX`。若 label-node 部署时把 `LABEL_PREFIX` 改成了其它值（例如 `dcu`），节点上不会出现 `hygon.com/hcu` 标签，**DaemonSet 的期望副本数会变成 0，exporter 一个 Pod 都不会创建，kubectl 也不会报错**，只会表现为监控面板上没有数据。
+
+排查确认当前前缀：
+
+```bash
+# label-node 实际写入的标签键（该 env 未设置时为空，即默认值 hygon.com/hcu）
+kubectl -n kube-system get ds hcu-label-node -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="LABEL_PREFIX")].value}'
+# 节点上实际的 HCU 相关标签
+kubectl get node <node> --show-labels | tr ',' '\n' | grep hygon
+# exporter DaemonSet 的期望副本数，为 0 即选择器没匹配上
+kubectl -n kube-system get ds hcu-exporter
+```
+
+修改了 `LABEL_PREFIX` 时同步修改选择器：
+
+| 部署方式 | 需要修改的位置 |
+|---------|---------------|
+| 静态清单 | `deployment/static/hcu-exporter.yaml` 中 `nodeSelector` 的键 |
+| Helm | `deployment/helm/hcu-exporter/values.yaml` 中 `nodeSelector` 的键 |
+
+> 注意区分两套前缀：`RESOURCE_PREFIX`（`hcu` / `dcu` 等）只影响采集时匹配的扩展资源名（`hygon.com/hcu`、`hygon.com/hcunum` 等），与节点标签无关；节点标签只由 label-node 的 `LABEL_PREFIX` 决定。两者互相独立，改一个不会自动带动另一个。
+
 ## 源码编译
 
 ### 依赖仓库
