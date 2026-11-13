@@ -4,9 +4,9 @@
 apiVersion: v3
 name: hcu-exporter
 description: A Helm chart for HCU exporter
-version: "v3.0.1"
+version: "v3.0.2"
 kubeVersion: ">1.18.0-0"
-appVersion: "v3.0.1"
+appVersion: "v3.0.2"
 keywords:
   - hcu
   - dtk
