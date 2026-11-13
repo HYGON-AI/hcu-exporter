@@ -25,7 +25,7 @@ hcuExporter:
       resourcePrefix: "hcu"
     image:
       repository: harbor.sourcefind.cn:5443/hcu/admin/base/hcu-exporter
-      tag: v3.0.1
+      tag: v3.0.2
     imagePullPolicy: IfNotPresent
   nodeSelector:
     hygon.com/hcu: "true"

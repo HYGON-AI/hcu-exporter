@@ -38,7 +38,7 @@ spec:
       nodeSelector:
         hygon.com/hcu: "true"
       containers:
-        - image: "harbor.sourcefind.cn:5443/hcu/admin/base/hcu-exporter:v3.0.1"
+        - image: "harbor.sourcefind.cn:5443/hcu/admin/base/hcu-exporter:v3.0.2"
           securityContext:
             privileged: true
           env:
