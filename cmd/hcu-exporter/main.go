@@ -824,21 +824,35 @@ func updatePodInfoMap(pod *v1.Pod) {
 	// 整卡资源（hygon.com/<prefix> 等）
 	if util.HasIntersection(resourceNames, util.StringSliceToSet(resources)) {
 		podresource := podresources.NewPodResourcesClient(timeout, socket, resources, maxSize)
-		podInfoMap, _ = podresource.GetDeviceToPodInfo(pod.Spec.NodeName)
-		glog.V(5).Infof(" hcuPodInfoMap: %v \n", podInfoMap)
+		info, err := podresource.GetDeviceToPodInfo(pod.Spec.NodeName)
+		if err != nil {
+			glog.Errorf("Get physical HCU pod info for %s/%s: %v", pod.Namespace, pod.Name, err)
+		} else {
+			podInfoMap = info
+			glog.V(2).Infof("hcuPodInfoMap (%d): %v", len(podInfoMap), podInfoMap)
+		}
 	}
 
 	// 共享 vHCU（hygon.com/<prefix>-share…）
 	if util.HasIntersection(resourceNames, util.StringSliceToSet(vhcuShareResource)) {
 		podHCUShareResource := podresources.NewPodResourcesClient(timeout, socket, vhcuShareResource, maxSize)
-		podHCUShareInfoMap, _ = podHCUShareResource.GetDeviceToPodInfo(pod.Spec.NodeName)
-		glog.V(5).Infof(" podHCUShareInfoMap: %v \n", podHCUShareInfoMap)
+		info, err := podHCUShareResource.GetDeviceToPodInfo(pod.Spec.NodeName)
+		if err != nil {
+			glog.Errorf("Get share vHCU pod info for %s/%s: %v", pod.Namespace, pod.Name, err)
+		} else {
+			podHCUShareInfoMap = info
+			glog.V(2).Infof("podHCUShareInfoMap (%d): %v", len(podHCUShareInfoMap), podHCUShareInfoMap)
+		}
 	}
 
 	// 动态 vHCU（hygon.com/<prefix>num…）
 	if util.HasIntersection(resourceNames, util.StringSliceToSet(vhcuDynamicResource)) {
 		podHCUHAMiResource := podresources.NewPodResourcesClient(timeout, socket, vhcuDynamicResource, maxSize)
-		podHCUHAMiInfoMap, _ := podHCUHAMiResource.GetDeviceToPodInfo(pod.Spec.NodeName)
+		podHCUHAMiInfoMap, err := podHCUHAMiResource.GetDeviceToPodInfo(pod.Spec.NodeName)
+		if err != nil {
+			glog.Errorf("Get dynamic vHCU pod info for %s/%s: %v", pod.Namespace, pod.Name, err)
+			return
+		}
 		vHCUDynamicInfoMap, hcuDynamicInfoMap, err := podresources.GetVHCUPodInfo(podHCUHAMiInfoMap)
 		if err != nil {
 			glog.Errorf("Get vhcu pod info error: %v ", err)

@@ -89,20 +89,26 @@ func resolveNodeName() string {
 }
 
 func maybeStartPodInformer(nodeName string) {
-	if connectK8sFlag && util.FileExists(socket) {
-		glog.V(2).Infof("K8S exists~")
-		config, err := podresources.BuildConfig(podresources.Kubeconfig)
-		if err != nil {
-			_ = fmt.Errorf("%v", err)
-		}
-		client, err := kubernetes.NewForConfig(config)
-		_ = err
-		go informerPodHandler(nodeName, client)
+	if !connectK8sFlag {
+		glog.V(2).Infof("K8S connection disabled by connect-k8s=false; pod labels stay empty")
 		return
 	}
-	if !connectK8sFlag {
-		glog.V(2).Infof("K8S connection disabled by connect-k8s=false")
+	if !util.FileExists(socket) {
+		glog.Errorf("kubelet pod-resources socket %s not found; container/pod labels stay empty", socket)
+		return
 	}
+	glog.V(2).Infof("K8S exists~")
+	config, err := podresources.BuildConfig(podresources.Kubeconfig)
+	if err != nil {
+		glog.Errorf("build kube config: %v; pod labels stay empty", err)
+		return
+	}
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		glog.Errorf("create kube client: %v; pod labels stay empty", err)
+		return
+	}
+	go informerPodHandler(nodeName, client)
 }
 
 func buildVHCUInfoMap(vdeviceInfos []dcgm.VDeviceInfo) map[string]dcgm.VDeviceInfo {
