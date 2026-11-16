@@ -6,18 +6,20 @@ package podresources
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
 	"net"
 	"os"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-
-	podresourcesapi "k8s.io/kubelet/pkg/apis/podresources/v1alpha1"
+	"k8s.io/client-go/tools/clientcmd"
+	podresourcesv1 "k8s.io/kubelet/pkg/apis/podresources/v1"
+	podresourcesv1alpha1 "k8s.io/kubelet/pkg/apis/podresources/v1alpha1"
 )
 
 type PodResources interface {
@@ -70,23 +72,90 @@ func connectToServer(socket string, timeout time.Duration, maxSize int) (*grpc.C
 	return conn, nil
 }
 
-func listPods(socket string, timeout time.Duration, maxSize int) (*podresourcesapi.ListPodResourcesResponse, error) {
+// allocatedDevice is one device ID reported by the kubelet PodResources API.
+type allocatedDevice struct {
+	Namespace    string
+	Pod          string
+	Container    string
+	ResourceName string
+	DeviceIDs    []string
+}
+
+func listPods(socket string, timeout time.Duration, maxSize int) ([]allocatedDevice, error) {
 	conn, err := connectToServer(socket, timeout, maxSize)
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
 
-	client := podresourcesapi.NewPodResourcesListerClient(conn)
-
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	resp, err := client.List(ctx, &podresourcesapi.ListPodResourcesRequest{})
-	if err != nil {
-		return nil, fmt.Errorf("failure getting pod resources %v", err)
+	// Kubelet 1.28+ only serves PodResources v1. Older kubelets still serve v1alpha1.
+	v1client := podresourcesv1.NewPodResourcesListerClient(conn)
+	resp, err := v1client.List(ctx, &podresourcesv1.ListPodResourcesRequest{})
+	if err == nil {
+		return devicesFromV1(resp), nil
 	}
-	return resp, nil
+	if !isUnimplemented(err) {
+		return nil, fmt.Errorf("failure getting pod resources (v1): %v", err)
+	}
+
+	ctx2, cancel2 := context.WithTimeout(context.Background(), timeout)
+	defer cancel2()
+	a1client := podresourcesv1alpha1.NewPodResourcesListerClient(conn)
+	respA1, err := a1client.List(ctx2, &podresourcesv1alpha1.ListPodResourcesRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("failure getting pod resources (v1 and v1alpha1): %v", err)
+	}
+	return devicesFromV1Alpha1(respA1), nil
+}
+
+func isUnimplemented(err error) bool {
+	st, ok := status.FromError(err)
+	return ok && st.Code() == codes.Unimplemented
+}
+
+func devicesFromV1(resp *podresourcesv1.ListPodResourcesResponse) []allocatedDevice {
+	if resp == nil {
+		return nil
+	}
+	var out []allocatedDevice
+	for _, pod := range resp.GetPodResources() {
+		for _, container := range pod.GetContainers() {
+			for _, device := range container.GetDevices() {
+				out = append(out, allocatedDevice{
+					Namespace:    pod.GetNamespace(),
+					Pod:          pod.GetName(),
+					Container:    container.GetName(),
+					ResourceName: device.GetResourceName(),
+					DeviceIDs:    device.GetDeviceIds(),
+				})
+			}
+		}
+	}
+	return out
+}
+
+func devicesFromV1Alpha1(resp *podresourcesv1alpha1.ListPodResourcesResponse) []allocatedDevice {
+	if resp == nil {
+		return nil
+	}
+	var out []allocatedDevice
+	for _, pod := range resp.GetPodResources() {
+		for _, container := range pod.GetContainers() {
+			for _, device := range container.GetDevices() {
+				out = append(out, allocatedDevice{
+					Namespace:    pod.GetNamespace(),
+					Pod:          pod.GetName(),
+					Container:    container.GetName(),
+					ResourceName: device.GetResourceName(),
+					DeviceIDs:    device.GetDeviceIds(),
+				})
+			}
+		}
+	}
+	return out
 }
 
 func BuildConfig(kubeconfig string) (*rest.Config, error) {
@@ -141,35 +210,31 @@ func contains(set []string, target string) bool {
 	return false
 }
 
-func getDeviceToPodInfo(pods podresourcesapi.ListPodResourcesResponse, filteredPods map[string]*v1.Pod, resources []string) map[string]PodInfo {
+func getDeviceToPodInfo(devices []allocatedDevice, filteredPods map[string]*v1.Pod, resources []string) map[string]PodInfo {
 	m := make(map[string]PodInfo)
-	for _, pod := range pods.GetPodResources() {
-		podIdentifier := fmt.Sprintf("%s/%s", pod.GetNamespace(), pod.GetName())
+	for _, device := range devices {
+		podIdentifier := fmt.Sprintf("%s/%s", device.Namespace, device.Pod)
 		if filteredPods[podIdentifier] == nil {
 			continue
 		}
-		for _, container := range pod.GetContainers() {
-			for _, device := range container.GetDevices() {
-				if !contains(resources, device.GetResourceName()) {
-					continue
-				}
-				podInfo := PodInfo{
-					Pod:       pod.GetName(),
-					Namespace: pod.GetNamespace(),
-					Container: container.GetName(),
-					UID:       string(filteredPods[podIdentifier].UID),
-				}
-				for _, uuid := range device.GetDeviceIds() {
-					m[uuid] = podInfo
-				}
-			}
+		if !contains(resources, device.ResourceName) {
+			continue
+		}
+		podInfo := PodInfo{
+			Pod:       device.Pod,
+			Namespace: device.Namespace,
+			Container: device.Container,
+			UID:       string(filteredPods[podIdentifier].UID),
+		}
+		for _, uuid := range device.DeviceIDs {
+			m[uuid] = podInfo
 		}
 	}
 	return m
 }
 
 func (k *podResources) GetDeviceToPodInfo(node string) (map[string]PodInfo, error) {
-	pods, err := listPods(k.socket, k.timeout, k.maxSize)
+	devices, err := listPods(k.socket, k.timeout, k.maxSize)
 	if err != nil {
 		return nil, fmt.Errorf("list pods: %v", err)
 	}
@@ -177,6 +242,6 @@ func (k *podResources) GetDeviceToPodInfo(node string) (map[string]PodInfo, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to get running pods: %v", err)
 	}
-	info := getDeviceToPodInfo(*pods, runningPods, k.reources)
+	info := getDeviceToPodInfo(devices, runningPods, k.reources)
 	return info, nil
 }
