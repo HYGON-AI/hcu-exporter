@@ -128,9 +128,22 @@ var metricBaseLabels = map[string][]string{
 var promNamePattern = regexp.MustCompile(`^[a-zA-Z_:][a-zA-Z0-9_:]*$`)
 
 // MetricConfig holds metric and label display name mappings.
+// Exported names follow RESOURCE_PREFIX (hcu_* -> <family>_*, vhcu_* -> v<family>_*)
+// unless METRICS_DEFINE / LABEL_DEFINE set an explicit display name.
 type MetricConfig struct {
 	displayNames map[string]string
 	labelMap     map[string]string
+	// familyToken is the Prometheus-safe product family used in exported names.
+	// It matches RESOURCE_PREFIX except characters that cannot appear in a Prometheus name.
+	familyToken string
+}
+
+// FamilyToken returns the product-family token applied to exported metric and label names.
+func (c *MetricConfig) FamilyToken() string {
+	if c == nil || c.familyToken == "" {
+		return DefaultResourcePrefix
+	}
+	return c.familyToken
 }
 
 func (c *MetricConfig) DisplayName(internal string) string {
@@ -140,7 +153,7 @@ func (c *MetricConfig) DisplayName(internal string) string {
 	if name, ok := c.displayNames[internal]; ok && name != "" {
 		return name
 	}
-	return internal
+	return applyFamilyPrefix(internal, c.familyToken)
 }
 
 func (c *MetricConfig) LabelsForMetric(_ string, baseLabels []string) []string {
@@ -221,11 +234,73 @@ func validatePromName(name, field string) error {
 	return nil
 }
 
+// exportedFamilyToken converts RESOURCE_PREFIX into a Prometheus name token.
+// Characters outside [A-Za-z0-9_] are dropped, so "*cu" exports as "cu".
+func exportedFamilyToken() (string, error) {
+	raw := ResourcePrefix()
+	var b strings.Builder
+	for _, r := range raw {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			b.WriteRune(r)
+		}
+	}
+	token := b.String()
+	if err := validatePromName(token, "resource-prefix metric family"); err != nil {
+		return "", fmt.Errorf("resource-prefix %q cannot be used as a metric name prefix: %w", raw, err)
+	}
+	return token, nil
+}
+
+// applyFamilyPrefix rewrites a built-in hcu_/vhcu_ identifier to the active family.
+// Only the leading family token is replaced; an embedded "hcu" is left unchanged
+// (hcu_process_hcu_percent + dcu -> dcu_process_hcu_percent).
+func applyFamilyPrefix(name, token string) string {
+	if token == "" || token == DefaultResourcePrefix {
+		return name
+	}
+	switch {
+	case strings.HasPrefix(name, "vhcu_"):
+		return "v" + token + name[len("vhcu"):]
+	case strings.HasPrefix(name, "hcu_"):
+		return token + name[len("hcu"):]
+	default:
+		return name
+	}
+}
+
+func (c *MetricConfig) autoFamilyLabelMap() map[string]string {
+	labelMap := make(map[string]string)
+	if c == nil || c.familyToken == "" || c.familyToken == DefaultResourcePrefix {
+		return labelMap
+	}
+	seen := make(map[string]struct{})
+	for _, labels := range metricBaseLabels {
+		for _, label := range labels {
+			if _, ok := seen[label]; ok {
+				continue
+			}
+			seen[label] = struct{}{}
+			renamed := applyFamilyPrefix(label, c.familyToken)
+			if renamed != label {
+				labelMap[label] = renamed
+			}
+		}
+	}
+	return labelMap
+}
+
 // NewMetricConfig parses --metrics-define and --label-define JSON strings.
+// RESOURCE_PREFIX supplies the default exported prefix. Explicit METRICS_DEFINE
+// and LABEL_DEFINE entries override that default for the names they list.
 func NewMetricConfig(metricsDefineJSON, labelDefineJSON string) (*MetricConfig, error) {
+	token, err := exportedFamilyToken()
+	if err != nil {
+		return nil, err
+	}
 	cfg := &MetricConfig{
 		displayNames: make(map[string]string),
 		labelMap:     make(map[string]string),
+		familyToken:  token,
 	}
 	if err := cfg.applyMetricsDefine(metricsDefineJSON); err != nil {
 		return nil, err
@@ -233,7 +308,60 @@ func NewMetricConfig(metricsDefineJSON, labelDefineJSON string) (*MetricConfig, 
 	if err := cfg.applyLabelDefine(labelDefineJSON); err != nil {
 		return nil, err
 	}
+	if err := cfg.validateEffectiveDisplayNames(); err != nil {
+		return nil, err
+	}
 	return cfg, nil
+}
+
+func (c *MetricConfig) validateEffectiveDisplayNames() error {
+	used := make(map[string]string, len(allInternalMetricNames))
+	for _, internal := range allInternalMetricNames {
+		display := c.DisplayName(internal)
+		if err := validatePromName(display, "metric display name"); err != nil {
+			return fmt.Errorf("resource-prefix %q: %w", ResourcePrefix(), err)
+		}
+		if owner, ok := used[display]; ok && owner != internal {
+			return fmt.Errorf("metric display name %q conflicts between %q and %q (resource-prefix=%q)", display, owner, internal, ResourcePrefix())
+		}
+		used[display] = internal
+	}
+	return nil
+}
+
+// metricLookupByExportedName maps a name after the RESOURCE_PREFIX rewrite
+// back to the built-in metric id. METRICS_DEFINE keys use the rewritten name.
+func (c *MetricConfig) metricLookupByExportedName() (map[string]string, error) {
+	lookup := make(map[string]string, len(allInternalMetricNames))
+	for _, internal := range allInternalMetricNames {
+		exported := applyFamilyPrefix(internal, c.familyToken)
+		if prev, ok := lookup[exported]; ok && prev != internal {
+			return nil, fmt.Errorf("resource-prefix %q: exported metric name %q is produced by both %q and %q", ResourcePrefix(), exported, prev, internal)
+		}
+		lookup[exported] = internal
+	}
+	return lookup, nil
+}
+
+// labelLookupByExportedName maps a label name after the RESOURCE_PREFIX rewrite
+// back to the built-in label id. LABEL_DEFINE keys use the rewritten name.
+func (c *MetricConfig) labelLookupByExportedName() (map[string]string, error) {
+	lookup := make(map[string]string)
+	seen := make(map[string]struct{})
+	for _, labels := range metricBaseLabels {
+		for _, label := range labels {
+			if _, ok := seen[label]; ok {
+				continue
+			}
+			seen[label] = struct{}{}
+			exported := applyFamilyPrefix(label, c.familyToken)
+			if prev, ok := lookup[exported]; ok && prev != label {
+				return nil, fmt.Errorf("resource-prefix %q: exported label name %q is produced by both %q and %q", ResourcePrefix(), exported, prev, label)
+			}
+			lookup[exported] = label
+		}
+	}
+	return lookup, nil
 }
 
 func (c *MetricConfig) applyMetricsDefine(metricsDefineJSON string) error {
@@ -241,14 +369,20 @@ func (c *MetricConfig) applyMetricsDefine(metricsDefineJSON string) error {
 	if metricsDefineJSON == "" {
 		return nil
 	}
+	lookup, err := c.metricLookupByExportedName()
+	if err != nil {
+		return err
+	}
 	raw := make(map[string]string)
 	if err := json.Unmarshal([]byte(metricsDefineJSON), &raw); err != nil {
 		return fmt.Errorf("parse metrics-define: %w", err)
 	}
 	usedDisplayNames := make(map[string]string)
-	for internal, display := range raw {
-		if !isValidInternalMetricName(internal) {
-			return fmt.Errorf("metrics-define: unknown metric %q", internal)
+	for exported, display := range raw {
+		exported = strings.TrimSpace(exported)
+		internal, ok := lookup[exported]
+		if !ok {
+			return fmt.Errorf("metrics-define: unknown metric %q; keys must be metric names after RESOURCE_PREFIX rewrite (resource-prefix=%q)", exported, ResourcePrefix())
 		}
 		display = strings.TrimSpace(display)
 		if err := validatePromName(display, "metrics-define display name"); err != nil {
@@ -277,23 +411,29 @@ func (c *MetricConfig) applyMetricsDefine(metricsDefineJSON string) error {
 }
 
 func (c *MetricConfig) applyLabelDefine(labelDefineJSON string) error {
-	labelDefineJSON = strings.TrimSpace(labelDefineJSON)
-	if labelDefineJSON == "" {
-		return nil
-	}
-	raw := make(map[string]string)
-	if err := json.Unmarshal([]byte(labelDefineJSON), &raw); err != nil {
-		return fmt.Errorf("parse label-define: %w", err)
+	// Start from the RESOURCE_PREFIX rewrite, then let LABEL_DEFINE replace those entries.
+	// LABEL_DEFINE keys are the rewritten label names, not the built-in hcu_* names.
+	labelMap := c.autoFamilyLabelMap()
+	lookup, err := c.labelLookupByExportedName()
+	if err != nil {
+		return err
 	}
 
-	labelMap := make(map[string]string, len(raw))
-	for original, display := range raw {
-		original = strings.TrimSpace(original)
-		display = strings.TrimSpace(display)
-		if prev, ok := labelMap[original]; ok && prev != display {
-			return fmt.Errorf("label-define: label %q maps to multiple names", original)
+	labelDefineJSON = strings.TrimSpace(labelDefineJSON)
+	if labelDefineJSON != "" {
+		raw := make(map[string]string)
+		if err := json.Unmarshal([]byte(labelDefineJSON), &raw); err != nil {
+			return fmt.Errorf("parse label-define: %w", err)
 		}
-		labelMap[original] = display
+		for exported, display := range raw {
+			exported = strings.TrimSpace(exported)
+			display = strings.TrimSpace(display)
+			original, ok := lookup[exported]
+			if !ok {
+				return fmt.Errorf("label-define: unknown label %q; keys must be label names after RESOURCE_PREFIX rewrite (resource-prefix=%q)", exported, ResourcePrefix())
+			}
+			labelMap[original] = display
+		}
 	}
 	if err := validateGlobalLabelMap(labelMap); err != nil {
 		return err

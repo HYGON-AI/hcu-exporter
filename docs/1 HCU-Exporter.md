@@ -2,7 +2,7 @@
 
 HCU-Exporter提供 HCU/vHCU 设备的监控指标，支持 Prometheus 集成。通过 HCU-Exporter，用户可以实时监控 HCU/vHCU 的温度、功耗、显存使用率等关键指标，确保设备的健康运行。
 
-HCU-Exporter通过 HTTP 接口暴露HCU的监控指标，默认端口为16080，默认路径为/metrics，用户可通过 `http://hostname:16080/metrics` 访问指标。指标以 Prometheus 文本格式提供，便于Prometheus抓取和存储。HCU-Exporter暴露的指标涵盖HCU的多个方面，指标名称和指标含义如下：
+HCU-Exporter通过 HTTP 接口暴露HCU的监控指标，默认端口为16080，默认路径为/metrics，用户可通过 `http://hostname:16080/metrics` 访问指标。指标以 Prometheus 文本格式提供，便于Prometheus抓取和存储。HCU-Exporter暴露的指标涵盖HCU的多个方面。下表是内部名称；`RESOURCE_PREFIX=hcu` 时导出名与内部名相同，改为 `dcu` 等后导出名的 `hcu_` / `vhcu_` 前缀会跟着变。`METRICS_DEFINE` 的 key 使用改写后的名称（`dcu` 时写 `dcu_ce_count`），列出的名字优先。指标名称和指标含义如下：
 
 表 1.1 HCU-Exporter 监控指标
 
@@ -182,19 +182,19 @@ HCU-Exporter默认收集3.1所述全部监控指标，用户可以通过yaml环�
           # 是否连接 K8S 采集 Pod 信息；设置为 "false" 可跳过 K8S 连接（裸机部署场景）
           - name: "CONNECT_K8S"
             value: "true"
-          # 与 device-plugin 的 RESOURCE_PREFIX 保持一致（hcu | *cu ）
+          # 与 device-plugin 的 RESOURCE_PREFIX 保持一致（hcu | *cu | dcu，默认 hcu）
+          # 同时改写导出指标名和 Label 前缀，例如 dcu：hcu_ce_count -> dcu_ce_count，vhcu_utilizationrate -> vdcu_utilizationrate
+          # METRICS_DEFINE / LABEL_DEFINE 的 key 写改写后的名称（dcu 时写 dcu_ce_count，不要写 hcu_ce_count）
           - name: "RESOURCE_PREFIX"
             value: "hcu"
-          # 自定义导出指标名（内部指标名 -> 展示名），JSON 字符串；留空表示使用默认名称
-          # 示例：将 hcu_ce_count 导出为 ce_count，hcu_compute_unit_count 导出为 compute_unit_count
+          # 自定义导出指标名（改写后的指标名 -> 展示名）。RESOURCE_PREFIX=dcu 时 key 为 dcu_ce_count
           # - name: "METRICS_DEFINE"
-          #   value: '{"hcu_ce_count":"ce_count","hcu_compute_unit_count":"compute_unit_count"}'
+          #   value: '{"dcu_ce_count":"ce_count","dcu_compute_unit_count":"compute_unit_count"}'
           - name: "METRICS_DEFINE"
             value: ""
-          # 自定义指标 Label 名，JSON 字符串；全局生效，对所有包含该 Label 的指标统一重命名
-          # 示例：block_type -> b_type，hcu_pod_name -> pod_name，device_id -> uuid
+          # 自定义指标 Label 名。RESOURCE_PREFIX=dcu 时 key 为 dcu_pod_name
           # - name: "LABEL_DEFINE"
-          #   value: '{"block_type":"b_type","hcu_pod_name":"pod_name","device_id":"uuid"}'
+          #   value: '{"block_type":"b_type","dcu_pod_name":"pod_name","device_id":"uuid"}'
           - name: "LABEL_DEFINE"
             value: ""
 ```

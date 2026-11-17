@@ -24,14 +24,16 @@ func beforeCLI(c *cli.Context) error {
 		return err
 	}
 	initResourceNameLists()
-	glog.Infof("RESOURCE_PREFIX=%s (whole=%s dynamic=%s share=%s)",
-		util.ResourcePrefix(), util.WholeCardResourceName(), util.DynamicNumResourceName(), util.ShareResourceBaseName())
 
 	var err error
 	metricConfig, err = util.NewMetricConfig(c.String("metrics-define"), c.String("label-define"))
 	if err != nil {
 		return err
 	}
+	glog.Infof("RESOURCE_PREFIX=%s export_family=%s (whole=%s dynamic=%s share=%s; hcu_* -> %s_*, vhcu_* -> v%s_*)",
+		util.ResourcePrefix(), metricConfig.FamilyToken(),
+		util.WholeCardResourceName(), util.DynamicNumResourceName(), util.ShareResourceBaseName(),
+		metricConfig.FamilyToken(), metricConfig.FamilyToken())
 	metricsList, err = util.ResolveEnabledMetrics(c.String("metrics-level"), c.String("enable-metrics"))
 	if err != nil {
 		return err
@@ -81,17 +83,20 @@ func exporterFlags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name: "metrics-define",
-			Usage: "JSON map of internal metric names to exported display names, " +
-				"e.g. {\"hcu_ce_count\":\"ce_count\",\"hcu_compute_unit_count\":\"compute_unit_count\"}. " +
-				"Unspecified metrics keep their original names. Display names must be unique.",
+			Usage: "JSON map of metric names after RESOURCE_PREFIX rewrite to exported display names. " +
+				"RESOURCE_PREFIX=hcu: {\"hcu_ce_count\":\"ce_count\"}. " +
+				"RESOURCE_PREFIX=dcu: {\"dcu_ce_count\":\"ce_count\"}. " +
+				"Keys are not the built-in hcu_* names unless the prefix is hcu. " +
+				"Listed names override the prefix rewrite. Display names must be unique.",
 			Value:   "",
 			EnvVars: []string{"METRICS_DEFINE"},
 		},
 		&cli.StringFlag{
 			Name: "label-define",
-			Usage: "JSON map of global label renames applied to all metrics, " +
-				"e.g. {\"block_type\":\"b_type\",\"hcu_pod_name\":\"pod_name\",\"device_id\":\"uuid\"}. " +
-				"Display label names must be unique.",
+			Usage: "JSON map of global label renames. Keys are label names after RESOURCE_PREFIX rewrite. " +
+				"RESOURCE_PREFIX=hcu: {\"hcu_pod_name\":\"pod_name\",\"block_type\":\"b_type\"}. " +
+				"RESOURCE_PREFIX=dcu: {\"dcu_pod_name\":\"pod_name\",\"block_type\":\"b_type\"}. " +
+				"Listed labels override the prefix rewrite. Display label names must be unique.",
 			Value:   "",
 			EnvVars: []string{"LABEL_DEFINE"},
 		},
@@ -149,8 +154,10 @@ func exporterFlags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name: "resource-prefix",
-			Usage: "product-family prefix for K8s resource names; must match device-plugin RESOURCE_PREFIX:\n" +
-				"\t\t[hcu | *cu ], default hcu",
+			Usage: "product-family prefix; must match device-plugin RESOURCE_PREFIX (hcu | *cu | dcu, default hcu).\n" +
+				"\t\tAlso rewrites exported metric and label prefixes: hcu_* -> <family>_*, vhcu_* -> v<family>_*.\n" +
+				"\t\tMETRICS_DEFINE and LABEL_DEFINE override this rewrite for the names they list.\n" +
+				"\t\tCharacters illegal in Prometheus names are dropped (*cu exports as cu).",
 			Value:       util.DefaultResourcePrefix,
 			Destination: &resourcePrefixFlag,
 			EnvVars:     []string{"RESOURCE_PREFIX"},
