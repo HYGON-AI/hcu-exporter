@@ -7,8 +7,8 @@
 # 4). 可选：配置 METRICS_LEVEL 为 low/medium/high 按采集成本启用指标档位（默认 high）
 # 5). 可选：配置 SAMPLE_DURATION_MS 采样类利用率窗口毫秒数（默认 1000，仅 high 档相关指标）
 # 6). 可选：配置 ENABLE_METRICS 精确指定指标（非空时覆盖 METRICS_LEVEL）
-# 7). 可选：配置 METRICS_DEFINE / LABEL_DEFINE 自定义导出指标名与 Label 名（JSON 字符串，留空表示不自定义）
-# 8). 可选：配置 RESOURCE_PREFIX 与 device-plugin 保持一致（hcu | *cu | dcu，默认 hcu）
+# 7). 可选：配置 METRICS_DEFINE / LABEL_DEFINE 自定义导出指标名与 Label 名（JSON 字符串，留空表示不自定义）。key 使用 RESOURCE_PREFIX 改写后的名称（dcu 时写 dcu_ce_count，不要写 hcu_ce_count）；列出的名字优先于自动改写
+# 8). 可选：配置 RESOURCE_PREFIX 与 device-plugin 保持一致（hcu | *cu | dcu，默认 hcu）。同时改写导出名前缀：hcu_* -> <family>_*，vhcu_* -> v<family>_*（*cu 的导出名去掉 *，变为 cu_* / vcu_*）
 # 9). kubectl apply -f hcu-exporter.yaml
 apiVersion: apps/v1
 kind: DaemonSet
@@ -77,19 +77,22 @@ spec:
             # 是否连接 K8S 采集 Pod 信息；设置为 "false" 可跳过 K8S 连接（裸机部署场景）
             - name: "CONNECT_K8S"
               value: "true"
-            # 与 k8s-hcu-device-plugin 的 RESOURCE_PREFIX 保持一致（hcu | *cu ）
+            # 与 k8s-hcu-device-plugin 的 RESOURCE_PREFIX 保持一致（hcu | *cu | dcu，默认 hcu）
+            # 同时改写导出指标名和 Label 前缀，例如 dcu：hcu_ce_count -> dcu_ce_count，vhcu_utilizationrate -> vdcu_utilizationrate
+            # --enable-metrics 仍写内部名（hcu_*）
+            # METRICS_DEFINE / LABEL_DEFINE 的 key 写改写后的名称。前缀为 dcu 时写 dcu_ce_count，不要写 hcu_ce_count
             - name: "RESOURCE_PREFIX"
               value: "hcu"
-            # 自定义导出指标名（内部指标名 -> 展示名），JSON 字符串；留空表示使用默认名称
-            # 示例：将 hcu_ce_count 导出为 ce_count，hcu_compute_unit_count 导出为 compute_unit_count
+            # 自定义导出指标名（改写后的指标名 -> 展示名），JSON 字符串；列出的名字优先于自动改写
+            # RESOURCE_PREFIX=hcu 时 key 为 hcu_ce_count；RESOURCE_PREFIX=dcu 时 key 为 dcu_ce_count
             # - name: "METRICS_DEFINE"
-            #   value: '{"hcu_ce_count":"ce_count","hcu_compute_unit_count":"compute_unit_count"}'
+            #   value: '{"dcu_ce_count":"ce_count","dcu_compute_unit_count":"compute_unit_count"}'
             - name: "METRICS_DEFINE"
               value: ""
-            # 自定义指标 Label 名，JSON 字符串；全局生效，对所有包含该 Label 的指标统一重命名
-            # 示例：block_type -> b_type，hcu_pod_name -> pod_name，device_id -> uuid
+            # 自定义指标 Label 名，JSON 字符串；全局生效。key 为改写后的 Label 名
+            # RESOURCE_PREFIX=hcu 时写 hcu_pod_name；RESOURCE_PREFIX=dcu 时写 dcu_pod_name
             # - name: "LABEL_DEFINE"
-            #   value: '{"block_type":"b_type","hcu_pod_name":"pod_name","device_id":"uuid"}'
+            #   value: '{"block_type":"b_type","dcu_pod_name":"pod_name","device_id":"uuid"}'
             - name: "LABEL_DEFINE"
               value: ""
           name: "hcu-exporter"

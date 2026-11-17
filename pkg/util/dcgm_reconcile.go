@@ -68,19 +68,18 @@ func ReconcileDCGMDevices() {
 	}
 
 	glog.V(2).Infof("DCGM get hcu count ::: rsmi=%d  dmi=%d  lspci=%d", rsmiCount, dmiCount, lspciCount)
-	if rsmiCount == dmiCount && dmiCount == lspciCount {
+	countSynced := rsmiCount == dmiCount && dmiCount == lspciCount
+	incomplete := hasIncompletePhysicalDevices()
+	if countSynced && !incomplete {
 		return
 	}
 
-	glog.Warningf("DCGM out of sync (rsmi=%d dmi=%d lspci=%d), reinitializing", rsmiCount, dmiCount, lspciCount)
-	if err := dcgm.ShutDown(); err != nil {
-		glog.Errorf("DCGM ShutDown failed: %v", err)
-	}
-	if err := dcgm.Init(); err != nil {
-		glog.Errorf("DCGM Init failed: %v", err)
+	if !countSynced {
+		reinitDCGM(fmt.Sprintf("out of sync rsmi=%d dmi=%d lspci=%d", rsmiCount, dmiCount, lspciCount))
 		return
 	}
-	glog.V(2).Infof("DCGM reinitialized successfully")
+	reinitDCGM(fmt.Sprintf("incomplete device info with synced count=%d", dmiCount))
+
 }
 
 // StartDCGMDeviceReconcileLoop starts a background loop that reconciles DCGM devices periodically.
@@ -93,4 +92,34 @@ func StartDCGMDeviceReconcileLoop() {
 		}
 	}()
 	glog.V(2).Infof("Started DCGM device reconcile loop, interval: %v", dcgmDeviceReconcileInterval)
+}
+
+func reinitDCGM(reason string) {
+	glog.Warningf("DCGM reinitializing: %s", reason)
+	if err := dcgm.ShutDown(); err != nil {
+		glog.Errorf("DCGM ShutDown failed: %v", err)
+	}
+	if err := dcgm.Init(); err != nil {
+		glog.Errorf("DCGM Init failed: %v", err)
+		return
+	}
+	glog.V(2).Infof("DCGM reinitialized successfully")
+}
+
+// hasIncompletePhysicalDevices reports devices visible via RSMI but missing DMI fields.
+// After HCU reset, RSMI/DMI/lspci counts can already match while DeviceInfos still
+// returns cu=0 / empty type; that stale view must trigger DCGM reinitialization.
+func hasIncompletePhysicalDevices() bool {
+	devices, err := dcgm.DeviceInfos()
+	if err != nil {
+		glog.Errorf("DeviceInfos failed while checking completeness: %v", err)
+		return true
+	}
+	for _, d := range devices {
+		if d.MemoryTotal <= 0 || d.ComputeUnit <= 0 || d.DevTypeName == "" {
+			glog.V(2).Infof("Incomplete HCU detected: id=%s cu=%v type=%q", d.DeviceId, d.ComputeUnit, d.DevTypeName)
+			return true
+		}
+	}
+	return false
 }

@@ -26,7 +26,7 @@ HCU-Exporter 是面向海光 HCU 的 Prometheus 指标导出器。它通过 [hcu
 - **细粒度利用率指标**：支持 CU 瞬时利用率、采样窗口利用率、Wave 采样利用率及 Shader Engine（SE）利用率
 - **Kubernetes 集成**（可选）：通过 Kubelet Pod Resources API 与 Pod Informer，将设备指标与 Pod / 容器关联
 - **指标按需启用**：通过 `--metrics-level` 按采集成本分档，或通过 `--enable-metrics` 精确指定监控项
-- **指标与标签自定义**：通过 `--metrics-define` / `--label-define` 重命名导出的指标名与 Label 名，适配既有监控体系
+- **指标与标签自定义**：`RESOURCE_PREFIX` 会同步改写导出指标名和带产品族前缀的 Label；`--metrics-define` / `--label-define` 以改写后的名称作为 key，按条覆盖
 - **灵活部署**：支持裸机、Docker 与 Kubernetes（静态清单 / Helm Chart）
 - **访问控制**：支持对 `/metrics` 配置 IP / CIDR 白名单
 - **Hylink 明细模式**：`--hylink-detail` 可输出每条链路的独立指标
@@ -178,7 +178,7 @@ Helm 模板在 `connectK8s=true` 时自动挂载 Kubelet 目录并创建 Pod 读
 
 #### 节点标签前缀必须与 k8s-hcu-label-node 的 LABEL_PREFIX 一致
 
-exporter 的 `nodeSelector` 默认匹配 `hygon.com/hcu: "true"`，这个键来自 [k8s-hcu-label-node](../k8s-hcu-label-node) 的默认 `LABEL_PREFIX`。若 label-node 部署时把 `LABEL_PREFIX` 改成了其它值（例如 `dcu`），节点上不会出现 `hygon.com/hcu` 标签，**DaemonSet 的期望副本数会变成 0，exporter 一个 Pod 都不会创建，kubectl 也不会报错**，只会表现为监控面板上没有数据。
+exporter 的 `nodeSelector` 默认匹配 `hygon.com/hcu: "true"`，这个键来自 [k8s-hcu-label-node](../k8s-hcu-label-node) 的默认 `LABEL_PREFIX`。若 label-node 部署时把 `LABEL_PREFIX` 改成了其它值（例如 `*cu`），节点上不会出现 `hygon.com/hcu` 标签，**DaemonSet 的期望副本数会变成 0，exporter 一个 Pod 都不会创建，kubectl 也不会报错**，只会表现为监控面板上没有数据。
 
 排查确认当前前缀：
 
@@ -198,7 +198,7 @@ kubectl -n kube-system get ds hcu-exporter
 | 静态清单 | `deployment/static/hcu-exporter.yaml` 中 `nodeSelector` 的键 |
 | Helm | `deployment/helm/hcu-exporter/values.yaml` 中 `nodeSelector` 的键 |
 
-> 注意区分两套前缀：`RESOURCE_PREFIX`（`hcu` / `dcu` 等）只影响采集时匹配的扩展资源名（`hygon.com/hcu`、`hygon.com/hcunum` 等），与节点标签无关；节点标签只由 label-node 的 `LABEL_PREFIX` 决定。两者互相独立，改一个不会自动带动另一个。
+> 注意区分两套前缀：`RESOURCE_PREFIX`（`hcu` / `*cu` 等）决定采集时匹配的扩展资源名（`hygon.com/hcu`、`hygon.com/hcunum` 等），并同步改写导出指标名与带产品族前缀的 Label（`hcu_ce_count` → `*cu_ce_count`，`vhcu_utilizationrate` → `v*cu_utilizationrate`，`hcu_pod_name` → `*cu_pod_name`）。节点标签只由 label-node 的 `LABEL_PREFIX` 决定，改 `RESOURCE_PREFIX` 不会改节点标签。
 
 ## 源码编译
 
@@ -248,23 +248,23 @@ docker build -t hcu-exporter:latest .
 
 命令行参数与环境变量一一对应，**命令行优先级高于环境变量**。
 
-| 参数                   | 环境变量              | 默认值               | 说明                                                                 |
-| ---------------------- | --------------------- | -------------------- | -------------------------------------------------------------------- |
-| `--pulse`              | `PULSE`               | `10`                 | 指标采集间隔（秒）                                                   |
-| `--port`               | `HCU_EXPORTER_LISTEN` | `16080`              | HTTP 监听端口                                                        |
-| `--metrics-level`      | `METRICS_LEVEL`       | `high`               | 按采集成本启用指标档位：`low` / `medium` / `high`（详见下节）        |
-| `--enable-metrics`     | `ENABLE_METRICS`      | 空                   | 逗号分隔的**内部指标名**列表；**非空时优先生效，覆盖** `--metrics-level` |
-| `--metrics-define`     | `METRICS_DEFINE`      | 空                   | JSON 映射：内部指标名 → 导出展示名（详见[指标与标签自定义](#指标与标签自定义)） |
-| `--label-define`       | `LABEL_DEFINE`        | 空                   | JSON 全局 Label 重命名映射（详见[指标与标签自定义](#指标与标签自定义)） |
-| `--sample-duration-ms` | `SAMPLE_DURATION_MS`  | `1000`               | 采样类利用率指标的采样窗口时长（毫秒）；仅 `high` 档中相关指标生效     |
-| `--kube-config`        | `KUBE_CONFIG`         | `/root/.kube/config` | Kubeconfig 路径；不存在时使用 InCluster 配置                         |
-| `--connect-k8s`        | `CONNECT_K8S`         | `true`               | 是否连接 K8s 采集 Pod 关联信息                                       |
-| `--resource-prefix`    | `RESOURCE_PREFIX`     | `hcu`                | 产品族资源名前缀，须与 device-plugin 一致：`hcu` / `*cu` / `dcu`     |
-| `--hylink-detail`      | `HYLINK_DETAIL`       | `false`              | 是否输出 Hylink 每条链路的明细指标                                   |
-| `--ips`                | `ALLOWED_IPS`         | 空（不限制）         | 允许访问 `/metrics` 的 IP 或 CIDR，逗号分隔                          |
-| `--stderrthreshold`    | `LOG_THRESHOLD`       | `INFO`               | 日志级别：`INFO` / `WARNING` / `ERROR`                               |
-| `--log-verbose`        | `LOG_VERBOSE`         | `2`                  | 详细日志级别（0–10）                                                 |
-| `--alsologtostderr`    | `LOG_OUTPUT`          | `true`               | 是否输出日志到 stderr                                                |
+| 参数                   | 环境变量              | 默认值               | 说明                                                                                                                                       |
+| ---------------------- | --------------------- | -------------------- |--------------------------------------------------------------------------------------------------------------------------------------------|
+| `--pulse`              | `PULSE`               | `10`                 | 指标采集间隔（秒）                                                                                                                         |
+| `--port`               | `HCU_EXPORTER_LISTEN` | `16080`              | HTTP 监听端口                                                                                                                              |
+| `--metrics-level`      | `METRICS_LEVEL`       | `high`               | 按采集成本启用指标档位：`low` / `medium` / `high`（详见下节）                                                                              |
+| `--enable-metrics`     | `ENABLE_METRICS`      | 空                   | 逗号分隔的**内部指标名**列表；**非空时优先生效，覆盖** `--metrics-level`                                                                   |
+| `--metrics-define`     | `METRICS_DEFINE`      | 空                   | JSON 映射：`RESOURCE_PREFIX` 改写后的指标名 → 导出展示名；**优先于**自动改写（详见[指标与标签自定义](#指标与标签自定义)）                   |
+| `--label-define`       | `LABEL_DEFINE`        | 空                   | JSON 映射：`RESOURCE_PREFIX` 改写后的 Label 名 → 展示名；**优先于**自动改写（详见[指标与标签自定义](#指标与标签自定义)）                     |
+| `--sample-duration-ms` | `SAMPLE_DURATION_MS`  | `1000`               | 采样类利用率指标的采样窗口时长（毫秒）；仅 `high` 档中相关指标生效                                                                         |
+| `--kube-config`        | `KUBE_CONFIG`         | `/root/.kube/config` | Kubeconfig 路径；不存在时使用 InCluster 配置                                                                                               |
+| `--connect-k8s`        | `CONNECT_K8S`         | `true`               | 是否连接 K8s 采集 Pod 关联信息                                                                                                             |
+| `--resource-prefix`    | `RESOURCE_PREFIX`     | `hcu`                | 产品族前缀，须与 device-plugin 一致：`hcu` / `*cu` / `dcu`。同时改写导出指标名与 Label 前缀（`*cu` 导出名去掉 `*`，变为 `cu_*` / `vcu_*`） |
+| `--hylink-detail`      | `HYLINK_DETAIL`       | `false`              | 是否输出 Hylink 每条链路的明细指标                                                                                                         |
+| `--ips`                | `ALLOWED_IPS`         | 空（不限制）         | 允许访问 `/metrics` 的 IP 或 CIDR，逗号分隔                                                                                                |
+| `--stderrthreshold`    | `LOG_THRESHOLD`       | `INFO`               | 日志级别：`INFO` / `WARNING` / `ERROR`                                                                                                     |
+| `--log-verbose`        | `LOG_VERBOSE`         | `2`                  | 详细日志级别（0–10）                                                                                                                       |
+| `--alsologtostderr`    | `LOG_OUTPUT`          | `true`               | 是否输出日志到 stderr                                                                                                                      |
 
 **节点名称**：指标 `node` 标签优先读取环境变量 `NODE_NAME`（K8s 部署时由 Downward API 注入），否则读取 `/etc/hostname`。
 
@@ -377,44 +377,63 @@ docker run --name hcu-exporter -d --privileged \
 
 ## 指标与标签自定义
 
-Exporter 支持在启动时重命名导出的指标名与 Label 名，便于对接已有 Prometheus / Grafana 命名规范。
+Exporter 对外暴露的指标名、以及名称里带产品族前缀的 Label，默认跟随 `RESOURCE_PREFIX`。`RESOURCE_PREFIX=hcu` 时导出名与内部名相同。改为 `dcu` 时：
+
+| 改写后的名称（`METRICS_DEFINE` / `LABEL_DEFINE` 的 key） | 对应内部名 |
+| -------------------------------------------------------- | ---------- |
+| `dcu_ce_count` | `hcu_ce_count` |
+| `vdcu_utilizationrate` | `vhcu_utilizationrate` |
+| `dcu_process_hcu_percent` | `hcu_process_hcu_percent`（只改开头的 `hcu_`） |
+| Label `dcu_pod_name` | `hcu_pod_name` |
+| Label `vdcu_minor_number` | `vhcu_minor_number` |
+
+规则：`hcu_*` → `<family>_*`，`vhcu_*` → `v<family>_*`。`RESOURCE_PREFIX=*cu` 时，Prometheus 名称不能包含 `*`，实际导出名和配置 key 使用去掉 `*` 后的 `cu`（`cu_ce_count`、`vcu_utilizationrate`、`cu_pod_name`）；K8s 资源名仍是 `hygon.com/*cu`。
+
+`METRICS_DEFINE` 和 `LABEL_DEFINE` 的 **key 写改写之后的名称**。前缀是 `dcu` 时，把 `dcu_ce_count` 再导出为 `ce_count` 应写 `{"dcu_ce_count":"ce_count"}`，不要写内部名 `hcu_ce_count`。未列出的名称仍按 `RESOURCE_PREFIX` 改写。`--enable-metrics` 仍使用内部名（`hcu_temp`），它只决定采集哪些指标。
+
+仓库里的 Grafana 面板查询的是默认 `hcu_*` 名称。换前缀后需要改查询，或用 `METRICS_DEFINE` / `LABEL_DEFINE` 把需要保留的名字钉回去。
 
 ### `--metrics-define`：重命名指标
 
-JSON 格式为 `{"内部指标名": "展示名"}`：
+JSON 格式为 `{"改写后的指标名": "展示名"}`：
 
-- **Key** 必须是程序内置的指标名（如 `hcu_ce_count`），与 `--enable-metrics` 使用同一套名称
+- **Key** 是 `RESOURCE_PREFIX` 改写后的指标名。前缀为 `hcu` 时写 `hcu_ce_count`；前缀为 `dcu` 时写 `dcu_ce_count`
 - **Value** 为 `/metrics` 中实际暴露的 Prometheus 指标名
-- 未出现在 JSON 中的指标保持原名
-- 所有最终展示名（含未改名的默认名）必须全局唯一；配置非法时启动失败
+- 未出现在 JSON 中的指标按 `RESOURCE_PREFIX` 改写前缀；前缀为 `hcu` 时保持原名
+- 所有最终展示名（含自动改写后的名字）必须全局唯一；配置非法时启动失败
+
+`RESOURCE_PREFIX=dcu` 时：
 
 ```json
 {
-  "hcu_ce_count": "ce_count",
-  "hcu_compute_unit_count": "compute_unit_count"
+  "dcu_ce_count": "ce_count",
+  "dcu_compute_unit_count": "compute_unit_count"
 }
 ```
 
-上例中，`hcu_ce_count` 导出为 `ce_count`，`hcu_compute_unit_count` 导出为 `compute_unit_count`，其余指标不变。
+上例中，`dcu_ce_count` 导出为 `ce_count`，`dcu_compute_unit_count` 导出为 `compute_unit_count`，其余指标仍按 `dcu_*` / `vdcu_*` 导出。前缀为 `hcu` 时，key 与原来一样，写 `hcu_ce_count`。
 
 ### `--label-define`：重命名 Label
 
-JSON 格式为 `{"原label名": "展示label名"}`，**全局生效**：
+JSON 格式为 `{"改写后的 label 名": "展示 label 名"}`，**全局生效**：
 
-- 对所有指标，只要包含配置中的原 Label 名，导出时统一替换为展示名
-- 未出现在配置中的 Label 保持原名
+- **Key** 是 `RESOURCE_PREFIX` 改写后的 Label 名。不带产品族前缀的 Label（如 `block_type`、`device_id`）名称不变
+- 对所有指标，只要包含该 Label，导出时统一替换为展示名
+- 未出现在配置中、且以 `hcu_` / `vhcu_` 开头的 Label 按 `RESOURCE_PREFIX` 改写
 - 展示 Label 名必须全局唯一；若某指标在重命名后出现 Label 重名，启动失败
+
+`RESOURCE_PREFIX=dcu` 时：
 
 ```json
 {
   "block_type": "b_type",
-  "hcu_pod_name": "pod_name",
-  "hcu_pod_namespace": "namespace",
+  "dcu_pod_name": "pod_name",
+  "dcu_pod_namespace": "namespace",
   "device_id": "uuid"
 }
 ```
 
-上例中，所有包含 `device_id` 的指标都会将 Label 导出为 `uuid`；`hcu_ce_count` 的 `block_type` 会导出为 `b_type`，以此类推。
+上例中，`device_id` 导出为 `uuid`，`dcu_pod_name` 导出为 `pod_name`，`block_type` 导出为 `b_type`。前缀为 `hcu` 时，pod 相关 key 仍写 `hcu_pod_name`、`hcu_pod_namespace`。
 
 ### 配置关系说明
 
@@ -422,8 +441,9 @@ JSON 格式为 `{"原label名": "展示label名"}`，**全局生效**：
 | ------------------- | ------------------ | ------------------------------------------ |
 | `--metrics-level`   | 内部指标名预设集   | 按采集成本启用 low / medium / high 档指标  |
 | `--enable-metrics`  | 内部指标名         | 精确控制采集与注册哪些指标（覆盖档位）     |
-| `--metrics-define`  | 内部指标名 → 展示名 | 控制 `/metrics` 中的指标名                 |
-| `--label-define`    | 原 Label 名 → 展示名 | 全局控制 `/metrics` 中的 Label 名        |
+| `--resource-prefix` | 内部名中的 `hcu` / `vhcu` 前缀 | 未被下面两项点名的指标名和 Label 按此前缀导出 |
+| `--metrics-define`  | 改写后的指标名 → 展示名 | 控制 `/metrics` 中的指标名，优先于 `--resource-prefix` |
+| `--label-define`    | 改写后的 Label 名 → 展示名 | 全局控制 `/metrics` 中的 Label 名，优先于 `--resource-prefix` |
 
 采集逻辑始终基于内部指标名运行；仅在对外暴露时应用展示名与 Label 重命名。
 
@@ -431,7 +451,7 @@ JSON 格式为 `{"原label名": "展示label名"}`，**全局生效**：
 
 Exporter 使用独立 Registry，仅暴露由 `--metrics-level` 或 `--enable-metrics` 启用的指标。未识别的指标名称会在启动时打印警告并跳过。高成本指标仅在 `high` 档（或显式列入 `--enable-metrics`）时采集，详见[采集成本与 metrics-level](#采集成本与-metrics-level)。
 
-下表列出所有内置指标的**内部名称**（即默认导出名称）。若配置了 `--metrics-define`，实际 `/metrics` 中的名称以展示名为准。
+下表列出所有内置指标的**内部名称**。`RESOURCE_PREFIX=hcu` 且未配置 `--metrics-define` 时，导出名与内部名相同；否则以 `RESOURCE_PREFIX` 改写后的名字为准，被 `--metrics-define` 点名的指标再以展示名为准。
 
 ### 物理 HCU 指标
 
@@ -615,7 +635,7 @@ Exporter 根据 Pod 申请的资源名称，采用不同的关联策略：
 | vHCU 共享           | `hygon.com/<prefix>-share`、`hygon.com/<前缀>-share-<CU>-<显存>` | 通过 vHCU minor number 匹配 |
 | 动态 vHCU（*num）   | `hygon.com/<prefix>num`、`hygon.com/<型号>_<prefix>num` 等 | 结合 `/etc/vdev/dynamic` 与 Pod UID / 容器名匹配 |
 
-其中 `<prefix>` 由 `--resource-prefix` / `RESOURCE_PREFIX` 决定（默认 `hcu` → `hygon.com/hcu`、`hygon.com/hcunum`；设为 `dcu` 则为 `hygon.com/dcu`、`hygon.com/dcunum`）。须与 device-plugin 保持一致。型号变体仍按节点上检测到的设备动态生成（`GetResourceNameList`）。
+其中 `<prefix>` 由 `--resource-prefix` / `RESOURCE_PREFIX` 决定（默认 `hcu` → `hygon.com/hcu`、`hygon.com/hcunum`；设为 `*cu` 则为 `hygon.com/*cu`、`hygon.com/*cunum`）。须与 device-plugin 保持一致。型号变体仍按节点上检测到的设备动态生成（`GetResourceNameList`）。
 
 ### 部署注意事项
 
@@ -705,12 +725,12 @@ hcu-exporter/
 **Q: 启动时报 `metrics-define` 或 `label-define` 解析错误？**
 
 - 确认 JSON 格式合法（建议使用单引号包裹整个参数，内部使用双引号）
-- `--metrics-define` 的 Key 必须是有效的内部指标名；展示名需符合 Prometheus 命名规范且全局唯一
-- `--label-define` 的 Key 为原 Label 名，Value 为展示 Label 名；展示名需符合 Prometheus 命名规范且全局唯一；重命名后同一指标内 Label 不能重名
+- `--metrics-define` 的 Key 必须是 `RESOURCE_PREFIX` 改写后的指标名（`dcu` 时写 `dcu_ce_count`，不要写 `hcu_ce_count`）；展示名需符合 Prometheus 命名规范且全局唯一
+- `--label-define` 的 Key 为改写后的 Label 名（`dcu` 时写 `dcu_pod_name`），Value 为展示 Label 名；展示名需符合 Prometheus 命名规范且全局唯一；重命名后同一指标内 Label 不能重名
 
 **Q: `--enable-metrics` 和 `--metrics-define` 分别填什么名称？**
 
-`--enable-metrics` 始终使用内部指标名（如 `hcu_ce_count`）；`--metrics-define` 的 Key 也是内部指标名，Value 为对外展示名。`--label-define` 使用原 Label 名作为 Key，对所有指标全局生效。
+`--enable-metrics` 始终使用内部指标名（如 `hcu_ce_count`），只决定采集哪些指标。`--metrics-define` 的 Key 是 `RESOURCE_PREFIX` 改写后的名称：前缀为 `hcu` 时写 `hcu_ce_count`，前缀为 `dcu` 时写 `dcu_ce_count`，Value 为最终展示名。`--label-define` 同样使用改写后的 Label 名作为 Key。
 
 **Q: `--metrics-level` 与 `--enable-metrics` 如何选择？**
 
